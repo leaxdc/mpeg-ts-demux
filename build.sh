@@ -13,6 +13,6 @@ cd build
 echo "BUILD CONFIGURATION: $build_type"
 cmake ../src -DCMAKE_BUILD_TYPE=$build_type
 cpu_core_count=$(grep -c '^processor' /proc/cpuinfo 2>/dev/null || sysctl -n hw.ncpu)
-make -j$cpu_core_count install
+make -j$cpu_core_count
 popd
 
