@@ -1,23 +1,24 @@
 #include "options.h"
 
-
-// #include <boost/filesystem.hpp>
 #include <boost/log/trivial.hpp>
-
 #include <boost/program_options.hpp>
 #include <iostream>
 
-namespace po = boost::program_options;
-
 namespace mpegts
 {
+namespace po = boost::program_options;
+namespace log = boost::log;
 
 bool options::parse(int argc, char *argv[])
 {
   po::options_description desc("Options");
-  desc.add_options()("help", "produce help message")
-  		("output_dir,o", po::value(&_output_dir), "output directory")
-  		("enable_log,l", po::bool_switch(&_log_enabled), "enable log file");
+
+  using log::trivial::severity_level;
+
+  desc.add_options()("help", "produce help message")(
+      "output_dir,o", po::value(&_output_dir), "output directory")("log_level,l",
+      po::value<severity_level>(&_log_level)->default_value(severity_level::info),
+      "log level [trace, debug, info, warning, error, fatal]");
 
   auto print_help = [&]() {
     std::cout << "Usage: " << argv[0] << " [options] <input_file_name>"
@@ -65,23 +66,23 @@ bool options::parse(int argc, char *argv[])
 
 const std::string &options::get_input_file_name() const
 {
-	return _input_file;
+  return _input_file;
 }
 const std::string &options::get_oputput_directory() const
 {
-	return _output_dir;
+  return _output_dir;
 }
 
-bool options::is_log_enabled()const
+boost::log::trivial::severity_level options::get_log_severity_level() const
 {
-	return _log_enabled;
+  return _log_level;
 }
 
-void options::print()const
+void options::print() const
 {
-	std::cout << "Input file name: " << _input_file;
-	std::cout << "Output directory: " << _output_dir;
-	std::cout << "Log enabled: " << _log_enabled;
+  BOOST_LOG_TRIVIAL(info) << "Input file name: " << _input_file;
+  BOOST_LOG_TRIVIAL(info) << "Output directory: " << _output_dir;
+  BOOST_LOG_TRIVIAL(info) << "Log level: " << _log_level;
 }
 
-} //
+} // namespace mpegts

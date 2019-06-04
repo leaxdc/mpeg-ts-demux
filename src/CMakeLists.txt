@@ -20,7 +20,7 @@ set(Boost_USE_STATIC_LIBS   OFF)
 set(Boost_USE_STATIC_RUNTIME OFF)
 add_definitions(-DBOOST_ALL_DYN_LINK)
 
-find_package(Boost REQUIRED system filesystem program_options)
+find_package(Boost REQUIRED system filesystem program_options log log_setup)
 
 message("-- CMAKE_C_COMPILER: ${CMAKE_C_COMPILER}")
 message("-- CMAKE_C_FLAGS: ${CMAKE_C_FLAGS}")
@@ -28,7 +28,7 @@ message("-- CMAKE_CXX_COMPILER: ${CMAKE_CXX_COMPILER}")
 message("-- CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
 message("-- CMAKE_EXE_LINKER_FLAGS: ${CMAKE_EXE_LINKER_FLAGS}")
 message("-- Boost Include Dir: ${Boost_INCLUDE_DIR}")
-message("-- Boost Library Dir: ${Boost_LIBRARIES}")
+message("-- Boost Libraries Used: ${Boost_LIBRARIES}")
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${Boost_INCLUDE_DIR})
 

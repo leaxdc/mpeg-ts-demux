@@ -1,5 +1,6 @@
 #pragma once
 
+#include <boost/log/trivial.hpp>
 #include <string>
 
 namespace mpegts
@@ -11,13 +12,13 @@ public:
 
   const std::string &get_input_file_name() const;
   const std::string &get_oputput_directory() const;
-  bool is_log_enabled()const;
+  boost::log::trivial::severity_level get_log_severity_level() const;
 
-  void print()const;
+  void print() const;
 
 private:
   std::string _input_file;
   std::string _output_dir;
-  bool _log_enabled;
+  boost::log::trivial::severity_level _log_level;
 };
 } // namespace mpegts
