@@ -6,9 +6,15 @@
 #include <boost/log/trivial.hpp>
 #include <boost/program_options.hpp>
 
+#include <boost/asio/io_context.hpp>
+#include <boost/asio/post.hpp>
+#include <boost/asio/executor_work_guard.hpp>
+#include <boost/asio/signal_set.hpp>
+
 #include <iostream>
 
 namespace po = boost::program_options;
+namespace asio = boost::asio;
 
 namespace
 {
@@ -28,6 +34,36 @@ int main(int argc, char *argv[])
 
     logger::init(options.get_log_severity_level(), log_file_name);
     options.print();
+
+    // main context is to wait for Ctrl + C
+    asio::io_context main_context;
+
+    asio::signal_set signal_set(main_context, SIGINT, SIGTERM);
+
+    signal_set.async_wait([&svc](const auto &ec, int sig_code) {
+      BOOST_LOG_TRIVIAL(trace) << "Got signal: %d";
+
+      if (ec)
+      {
+        BOOST_LOG_TRIVIAL(error) << "Error: " << ec.message();
+      }
+
+      svc.stop();
+    });
+
+    int ret = main_context.run();
+
+    // context is finished in 2 cases:
+    // 1. got signal
+    // 2. no more data
+
+    svc.wait();
+
+    handling_context.stop();
+    work.reset();
+    handling_thread.join();
+
+    return ret;
   }
   catch (const std::exception &e)
   {
