@@ -2,12 +2,14 @@
 
 #include <boost/log/trivial.hpp>
 #include <boost/program_options.hpp>
+#include <boost/filesystem.hpp>
 #include <iostream>
 
 namespace mpegts
 {
 namespace po = boost::program_options;
 namespace log = boost::log;
+namespace fs = boost::filesystem;
 
 bool options::parse(int argc, char *argv[])
 {
@@ -59,6 +61,11 @@ bool options::parse(int argc, char *argv[])
               << "\n";
     print_help();
     return false;
+  }
+
+  if (_output_dir.empty())
+  {
+    _output_dir = fs::current_path().string();
   }
 
   return true;
