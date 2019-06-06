@@ -1,4 +1,4 @@
-#include "parser.h"
+#include "demux_service.h"
 #include "logger.h"
 #include "options.h"
 
@@ -6,9 +6,9 @@
 #include <boost/log/trivial.hpp>
 #include <boost/program_options.hpp>
 
+#include <boost/asio/executor_work_guard.hpp>
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/post.hpp>
-#include <boost/asio/executor_work_guard.hpp>
 #include <boost/asio/signal_set.hpp>
 
 #include <iostream>
@@ -18,8 +18,8 @@ namespace asio = boost::asio;
 
 namespace
 {
-  const std::string log_file_name = "mpeg-ts-demux_%Y%m%d_%H%M%S.log";
-} //
+const std::string log_file_name = "mpeg-ts-demux_%Y%m%d_%H%M%S.log";
+} // namespace
 
 int main(int argc, char *argv[])
 {
@@ -29,19 +29,22 @@ int main(int argc, char *argv[])
 
     if (!options.parse(argc, argv))
     {
+      // on error
       return 1;
     }
 
     logger::init(options.get_log_severity_level(), log_file_name);
     options.print();
 
-    // main context is to wait for Ctrl + C
     asio::io_context main_context;
+    mpegts::demux_service svc(options.get_input_file_name(), main_context, [](mpegts::elementary_stream::packet) {
+
+    });
 
     asio::signal_set signal_set(main_context, SIGINT, SIGTERM);
 
     signal_set.async_wait([&svc](const auto &ec, int sig_code) {
-      BOOST_LOG_TRIVIAL(trace) << "Got signal: %d";
+      BOOST_LOG_TRIVIAL(trace) << "Got signal: " << sig_code << "stopping...";
 
       if (ec)
       {
@@ -51,17 +54,17 @@ int main(int argc, char *argv[])
       svc.stop();
     });
 
+    svc.start();
+
     int ret = main_context.run();
 
     // context is finished in 2 cases:
     // 1. got signal
     // 2. no more data
 
-    svc.wait();
+    svc.join();
 
-    handling_context.stop();
-    work.reset();
-    handling_thread.join();
+    BOOST_LOG_TRIVIAL(info) << "Exitting...";
 
     return ret;
   }
