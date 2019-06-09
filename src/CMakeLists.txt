@@ -11,7 +11,7 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
 endif()
 
-file (GLOB SRC *.cpp)
+file (GLOB_RECURSE SRC *.cpp)
 
 add_executable(${PROJECT_NAME} ${SRC})
 
@@ -30,7 +30,7 @@ message("-- CMAKE_EXE_LINKER_FLAGS: ${CMAKE_EXE_LINKER_FLAGS}")
 message("-- Boost Include Dir: ${Boost_INCLUDE_DIR}")
 message("-- Boost Libraries Used: ${Boost_LIBRARIES}")
 
-target_include_directories(${PROJECT_NAME} PRIVATE ${Boost_INCLUDE_DIR})
+target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR} ${Boost_INCLUDE_DIR})
 
 target_link_libraries(${PROJECT_NAME} PRIVATE ${Boost_LIBRARIES})
 

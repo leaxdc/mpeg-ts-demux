@@ -37,9 +37,10 @@ int main(int argc, char *argv[])
     options.print();
 
     asio::io_context main_context;
-    mpegts::demux_service svc(options.get_input_file_name(), main_context, [](mpegts::elementary_stream::packet) {
+    mpegts::demux_service svc(
+        options.get_input_file_name(), main_context, [](mpegts::elementary_stream::packet) {
 
-    });
+        });
 
     asio::signal_set signal_set(main_context, SIGINT, SIGTERM);
 
@@ -57,10 +58,6 @@ int main(int argc, char *argv[])
     svc.start();
 
     int ret = main_context.run();
-
-    // context is finished in 2 cases:
-    // 1. got signal
-    // 2. no more data
 
     svc.join();
 
