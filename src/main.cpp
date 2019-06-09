@@ -29,7 +29,6 @@ int main(int argc, char *argv[])
 
     if (!options.parse(argc, argv))
     {
-      // on error
       return 1;
     }
 
@@ -38,7 +37,7 @@ int main(int argc, char *argv[])
 
     asio::io_context main_context;
     mpegts::demux_service svc(
-        options.get_input_file_name(), main_context, [](mpegts::elementary_stream::packet) {
+        options.get_input_file_name(), main_context, [](mpegts::pes_packet_uptr packet) {
 
         });
 

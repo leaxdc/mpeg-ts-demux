@@ -21,7 +21,7 @@ class demux_service::impl
 {
 public:
   impl(const std::string &file_name, boost::asio::io_context &io_context,
-      packet_received_callback callback)
+      packet_received_callback_t callback)
       : _file_name(file_name), _io_context(io_context), _callback(std::move(callback))
   {
     if (!_callback)
@@ -47,15 +47,19 @@ public:
         ifs.exceptions(exception_mask);
         ifs.open(_file_name, std::ios::in | std::ios::binary);
 
+        detail::ts_parser parser;
 
-        while (!ifs.eof())
+        int i=0;
+        while (!ifs.eof() && i++ < 10)
         {
+            boost::this_thread::interruption_point();
+
             detail::ts_packet_t ts_packet;
-            ifs >> ts_packet.header;
-            ifs.read(reinterpret_cast<char*>(ts_packet.data.data()), sizeof(ts_packet.data));
+            ifs.read(reinterpret_cast<char*>(&ts_packet.header), sizeof(uint32_t));
+            ifs.read(reinterpret_cast<char*>(ts_packet.data.data()), ts_packet.data.size());
 
             /*auto pes_offset = */
-            detail::parse_ts_packet(ts_packet);
+            parser.parse(ts_packet);
         }
       }
       catch (const boost::thread_interrupted &)
@@ -98,12 +102,12 @@ public:
 private:
   const std::string _file_name;
   boost::asio::io_context &_io_context;
-  packet_received_callback _callback;
+  packet_received_callback_t _callback;
   std::unique_ptr<boost::thread> _processing_thread;
 };
 
 demux_service::demux_service(const std::string &file_name, boost::asio::io_context &io_context,
-    packet_received_callback callback)
+    packet_received_callback_t callback)
     : _impl(std::make_unique<impl>(file_name, io_context, std::move(callback)))
 {
   // std::ifstream ifs;
