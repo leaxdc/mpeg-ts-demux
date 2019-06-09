@@ -12,11 +12,6 @@
 
 namespace mpegts
 {
-namespace
-{
-
-} // namespace
-
 class demux_service::impl
 {
 public:
@@ -59,7 +54,11 @@ public:
             ifs.read(reinterpret_cast<char*>(ts_packet.data.data()), ts_packet.data.size());
 
             /*auto pes_offset = */
-            parser.parse(ts_packet);
+            auto ts_packet_opt = parser.parse(std::move(ts_packet));
+            if (ts_packet_opt)
+            {
+
+            }
         }
       }
       catch (const boost::thread_interrupted &)
