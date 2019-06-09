@@ -16,7 +16,7 @@ namespace detail
     ts_packet_data_t data;
     uint16_t pid;
     bool pusi;
-    uint8_t* pes_offset_ptr;
+    uint8_t *pes_offset_ptr;
 
     ts_packet_t() : header(0), pid(0), pusi(false), pes_offset_ptr(data.data())
     {
@@ -24,6 +24,8 @@ namespace detail
 
     ts_packet_t(const ts_packet_t &) = delete;
     ts_packet_t &operator=(const ts_packet_t &) = delete;
+    ts_packet_t(ts_packet_t &&) = default;
+    ts_packet_t &operator=(ts_packet_t &&) = default;
   };
 
   using ts_packet_opt = boost::optional<ts_packet_t>;
