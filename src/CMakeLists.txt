@@ -24,7 +24,7 @@ set(Boost_USE_STATIC_LIBS   OFF)
 set(Boost_USE_STATIC_RUNTIME OFF)
 add_definitions(-DBOOST_ALL_DYN_LINK)
 
-find_package(Boost REQUIRED system filesystem program_options log log_setup)
+find_package(Boost 1.66.0 REQUIRED COMPONENTS system filesystem program_options log log_setup)
 
 message("-- CMAKE_C_COMPILER: ${CMAKE_C_COMPILER}")
 message("-- CMAKE_C_FLAGS: ${CMAKE_C_FLAGS}")
