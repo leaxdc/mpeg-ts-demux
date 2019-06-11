@@ -1,24 +1,24 @@
 #include "demux_service.h"
-#include "detail/ts_parser.h"
 #include "detail/pes_parser.hpp"
-
-#include <boost/log/trivial.hpp>
-#include <boost/thread.hpp>
+#include "detail/ts_parser.h"
 
 #include <array>
 #include <fstream>
 #include <iomanip>
-#include <iostream>
 #include <sstream>
+
+#include <boost/log/trivial.hpp>
+#include <boost/thread.hpp>
 
 namespace mpegts
 {
 class demux_service::impl
 {
 public:
-  impl(const std::string &file_name, boost::asio::io_context &/*io_context*/,
+  impl(const std::string &file_name, boost::asio::io_context &signal_listening_context,
       packet_received_callback_t callback)
-      : _file_name(file_name), /*_io_context(io_context),*/ _callback(std::move(callback))
+      : _file_name(file_name), _signal_listening_context(signal_listening_context),
+        _callback(std::move(callback))
   {
     if (!_callback)
     {
@@ -46,34 +46,35 @@ public:
         detail::ts_parser ts_parser;
         detail::pes_parser pes_parser;
 
+        // reusing ts_packet avoids reallocating of std::array member
+        detail::ts_packet_t ts_packet;
+
         while (!ifs.eof())
         {
-            // boost::this_thread::interruption_point();
+          boost::this_thread::interruption_point();
 
-            detail::ts_packet_t ts_packet;
-            ifs.read(reinterpret_cast<char*>(&ts_packet.header), sizeof(uint32_t));
-            ifs.read(reinterpret_cast<char*>(ts_packet.data.data()), ts_packet.data.size());
+          ifs.read(reinterpret_cast<char *>(&ts_packet.header), sizeof(uint32_t));
+          ifs.read(reinterpret_cast<char *>(ts_packet.data.data()), ts_packet.data.size());
 
-            auto ts_packet_opt = ts_parser.parse(std::move(ts_packet));
-            if (ts_packet_opt)
-            {
-              pes_parser.parse(std::move(*ts_packet_opt), _callback);
-            }
+          if (ts_parser.parse(ts_packet))
+          {
+            pes_parser.parse(ts_packet, _callback);
+            ts_packet.reset();
+          }
         }
 
         BOOST_LOG_TRIVIAL(trace) << "Flushing...";
-
         pes_parser.flush(_callback);
       }
       catch (const boost::thread_interrupted &)
       {
-        BOOST_LOG_TRIVIAL(trace) << "Processing tread interrupted";
+        BOOST_LOG_TRIVIAL(trace) << "Processing tread interrupted.";
       }
       catch (const std::exception &e)
       {
         BOOST_LOG_TRIVIAL(error) << e.what();
       }
-      // _io_context.stop();
+      _signal_listening_context.stop();
     });
   }
   void stop()
@@ -91,7 +92,7 @@ public:
     {
       BOOST_LOG_TRIVIAL(trace) << "Joining processing thread...";
       _processing_thread->join();
-      BOOST_LOG_TRIVIAL(trace) << "Processing thread finished";
+      BOOST_LOG_TRIVIAL(trace) << "Processing thread finished.";
     }
   }
 
@@ -104,14 +105,14 @@ public:
 
 private:
   const std::string _file_name;
-  // boost::asio::io_context &_io_context;
+  boost::asio::io_context &_signal_listening_context;
   packet_received_callback_t _callback;
   std::unique_ptr<boost::thread> _processing_thread;
 };
 
-demux_service::demux_service(const std::string &file_name, boost::asio::io_context &io_context,
-    packet_received_callback_t callback)
-    : _impl(std::make_unique<impl>(file_name, io_context, std::move(callback)))
+demux_service::demux_service(const std::string &file_name,
+    boost::asio::io_context &signal_listening_context, packet_received_callback_t callback)
+    : _impl(std::make_unique<impl>(file_name, signal_listening_context, std::move(callback)))
 {
 }
 

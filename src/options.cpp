@@ -1,9 +1,11 @@
 #include "options.h"
+#include "logger.h"
 
-#include <boost/log/trivial.hpp>
-#include <boost/program_options.hpp>
-#include <boost/filesystem.hpp>
 #include <iostream>
+
+#include <boost/filesystem.hpp>
+#include <boost/program_options.hpp>
+
 
 namespace mpegts
 {
@@ -14,13 +16,22 @@ namespace fs = boost::filesystem;
 bool options::parse(int argc, char *argv[])
 {
   po::options_description desc("Options");
+  bool log_ts_packets;
+  bool log_pes_packets;
 
   using log::trivial::severity_level;
 
   desc.add_options()("help", "produce help message")(
       "output_dir,o", po::value(&_output_dir), "output directory")("log_level,l",
       po::value<severity_level>(&_log_level)->default_value(severity_level::info),
-      "log level [trace, debug, info, warning, error, fatal]");
+      "log level [trace, debug, info, warning, error, fatal]")("log_ts_packets",
+      po::bool_switch(&log_ts_packets)->default_value(false),
+      "log TS packets(works together with log_level=trace)")("log_pes_packets",
+      po::bool_switch(&log_pes_packets)->default_value(false),
+      "log TS packets(works together with log_level=trace)");
+
+  logger::log_ts_packets = log_ts_packets;
+  logger::log_pes_packets = log_pes_packets;
 
   auto print_help = [&]() {
     std::cout << "Usage: " << argv[0] << " [options] <input_file_name>"

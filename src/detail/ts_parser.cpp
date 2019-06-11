@@ -1,27 +1,29 @@
 #include "ts_parser.h"
 #include "logger.h"
+#include "utils.hpp"
+
+#include <sstream>
 
 #include <boost/endian/conversion.hpp>
 #include <boost/log/trivial.hpp>
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
-#include <sstream>
 
 namespace mpegts
 {
 namespace detail
 {
-  ts_packet_opt ts_parser::parse(ts_packet_t ts_packet)
+  bool ts_parser::parse(ts_packet_t& ts_packet)
   {
-    // converting to big endian because masks in the documentation are big endian:
+    // converting to big endian because using big endian masks from the documentation:
     // https://en.wikipedia.org/wiki/MPEG_transport_stream#Important_elements_of_a_transport_stream
 
     auto header = boost::endian::native_to_big(ts_packet.header);
 
     if ((header & 0xff000000) != 0x47000000)
     {
-      // BOOST_LOG_TRIVIAL(trace) << "TS packet sync byte is invalid (expected 0x47), skipping";
-      return {};
+      // TS packet sync byte is invalid (expected 0x47), skipping
+      return false;
     }
 
     bool transport_error = (header & 0x800000);
@@ -35,52 +37,45 @@ namespace detail
 
     uint8_t adaptation_field_ctl = (header & 0x30) >> 4;
 
-    if (logger::current_severity_level.load() == boost::log::trivial::severity_level::trace)
+    if (logger::current_severity_level.load() == boost::log::trivial::severity_level::trace &&
+        logger::log_ts_packets)
     {
       boost::property_tree::ptree pt;
 
-      auto num_to_hex = [](auto num, bool is_0x) {
-        std::stringstream ss;
-        ss << std::hex << (is_0x ? "0x" : "") << num;
-        return ss.str();
-      };
-
-      pt.put("ts_header.bytes_hex", num_to_hex(header, false));
-      pt.put("ts_header.fields.transport_error_indicator", transport_error);
-      pt.put("ts_header.fields.PUSI", pusi);
-      pt.put("ts_header.fields.PID", num_to_hex(pid, true));
-      pt.put("ts_header.fields.continuity_cnt", continuity_cnt);
-      pt.put("ts_header.fields.adaptation_field_ctl", adaptation_field_ctl);
+      pt.put("ts_packet.header_bytes_hex", utils::num_to_hex(header, false));
+      pt.put("ts_packet.fields.transport_error_indicator", transport_error);
+      pt.put("ts_packet.fields.PUSI", pusi);
+      pt.put("ts_packet.fields.PID", utils::num_to_hex(pid, true));
+      pt.put("ts_packet.fields.continuity_cnt", continuity_cnt);
+      pt.put("ts_packet.fields.adaptation_field_ctl", adaptation_field_ctl);
 
       std::stringstream ss;
       boost::property_tree::json_parser::write_json(ss, pt);
-      BOOST_LOG_TRIVIAL(trace) << ss.str();
+      BOOST_LOG_TRIVIAL(trace) << "TS packet: " << ss.str();
     }
 
     if (transport_error)
     {
       BOOST_LOG_TRIVIAL(trace) << "TS packet is corrupt, skipping";
-      return {};
+      return false;
     }
 
     if (adaptation_field_ctl == 0x00 || adaptation_field_ctl == 0x02)
     {
-      // BOOST_LOG_TRIVIAL(trace) << "TS packet has no payload, skipping";
-      return {};
+      BOOST_LOG_TRIVIAL(trace) << "TS packet has no payload, skipping";
+      return false;
     }
 
     if (!((pid >= 0x20 && pid <= 0x1FFA) || (pid >= 0x1FFC && pid <= 0x1FFE)))
     {
-      // BOOST_LOG_TRIVIAL(trace) << "TS packet PID is outside of tables or PES range, skipping";
-      return {};
+      BOOST_LOG_TRIVIAL(trace) << "TS packet PID is outside of tables or PES range, skipping";
+      return false;
     }
 
     if (adaptation_field_ctl == 0x3)
     {
       uint8_t adaptaion_field_len = *(ts_packet.data.data() + ts_packet.pes_offset);
       ts_packet.pes_offset += sizeof(uint8_t) + adaptaion_field_len;
-      // BOOST_LOG_TRIVIAL(trace) << "Skipped TS adaptation field of len: "
-      //                          << static_cast<uint32_t>(adaptaion_field_len);
     }
 
     const auto it = _pid_to_continuity_cnt.find(pid);
@@ -94,7 +89,7 @@ namespace detail
 
     _pid_to_continuity_cnt[pid] = continuity_cnt;
 
-    return ts_packet_opt{std::move(ts_packet)};
+    return true;
   }
 } // namespace detail
 } // namespace mpegts
