@@ -20,7 +20,7 @@ namespace detail
 
     if ((header & 0xff000000) != 0x47000000)
     {
-      BOOST_LOG_TRIVIAL(trace) << "TS packet sync byte is invalid (expected 0x47), skipping";
+      // BOOST_LOG_TRIVIAL(trace) << "TS packet sync byte is invalid (expected 0x47), skipping";
       return {};
     }
 
@@ -65,30 +65,30 @@ namespace detail
 
     if (adaptation_field_ctl == 0x00 || adaptation_field_ctl == 0x02)
     {
-      BOOST_LOG_TRIVIAL(trace) << "TS packet has no payload, skipping";
+      // BOOST_LOG_TRIVIAL(trace) << "TS packet has no payload, skipping";
       return {};
     }
 
     if (!((pid >= 0x20 && pid <= 0x1FFA) || (pid >= 0x1FFC && pid <= 0x1FFE)))
     {
-      BOOST_LOG_TRIVIAL(trace) << "TS packet PID is outside of tables or PES range, skipping";
+      // BOOST_LOG_TRIVIAL(trace) << "TS packet PID is outside of tables or PES range, skipping";
       return {};
     }
 
     if (adaptation_field_ctl == 0x3)
     {
       uint8_t adaptaion_field_len = *(ts_packet.data.data() + ts_packet.pes_offset);
-      ts_packet.pes_offset += adaptaion_field_len;
-      BOOST_LOG_TRIVIAL(trace) << "Skipped TS adaptation field of len: "
-                               << static_cast<uint32_t>(adaptaion_field_len);
+      ts_packet.pes_offset += sizeof(uint8_t) + adaptaion_field_len;
+      // BOOST_LOG_TRIVIAL(trace) << "Skipped TS adaptation field of len: "
+      //                          << static_cast<uint32_t>(adaptaion_field_len);
     }
 
     const auto it = _pid_to_continuity_cnt.find(pid);
     if (_pid_to_continuity_cnt.find(pid) != _pid_to_continuity_cnt.end())
     {
-      if (continuity_cnt - it->second != 1)
+      if (continuity_cnt - it->second != 1 && continuity_cnt != 15 && it->second != 0)
       {
-        BOOST_LOG_TRIVIAL(warning) << "Packet loss detected";
+        BOOST_LOG_TRIVIAL(warning) << "TS packet loss detected";
       }
     }
 

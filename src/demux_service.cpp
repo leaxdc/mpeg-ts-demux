@@ -16,9 +16,9 @@ namespace mpegts
 class demux_service::impl
 {
 public:
-  impl(const std::string &file_name, boost::asio::io_context &io_context,
+  impl(const std::string &file_name, boost::asio::io_context &/*io_context*/,
       packet_received_callback_t callback)
-      : _file_name(file_name), _io_context(io_context), _callback(std::move(callback))
+      : _file_name(file_name), /*_io_context(io_context),*/ _callback(std::move(callback))
   {
     if (!_callback)
     {
@@ -46,10 +46,9 @@ public:
         detail::ts_parser ts_parser;
         detail::pes_parser pes_parser;
 
-        int i=0;
-        while (!ifs.eof() && i++ < 50)
+        while (!ifs.eof())
         {
-            boost::this_thread::interruption_point();
+            // boost::this_thread::interruption_point();
 
             detail::ts_packet_t ts_packet;
             ifs.read(reinterpret_cast<char*>(&ts_packet.header), sizeof(uint32_t));
@@ -62,6 +61,8 @@ public:
             }
         }
 
+        BOOST_LOG_TRIVIAL(trace) << "Flushing...";
+
         pes_parser.flush(_callback);
       }
       catch (const boost::thread_interrupted &)
@@ -72,7 +73,7 @@ public:
       {
         BOOST_LOG_TRIVIAL(error) << e.what();
       }
-      _io_context.stop();
+      // _io_context.stop();
     });
   }
   void stop()
@@ -103,7 +104,7 @@ public:
 
 private:
   const std::string _file_name;
-  boost::asio::io_context &_io_context;
+  // boost::asio::io_context &_io_context;
   packet_received_callback_t _callback;
   std::unique_ptr<boost::thread> _processing_thread;
 };
@@ -112,18 +113,6 @@ demux_service::demux_service(const std::string &file_name, boost::asio::io_conte
     packet_received_callback_t callback)
     : _impl(std::make_unique<impl>(file_name, io_context, std::move(callback)))
 {
-  // std::ifstream ifs;
-  // auto exception_mask = ifs.exceptions() | std::ios::failbit;
-  // ifs.exceptions(exception_mask);
-
-  // try
-  // {
-  //   ifs.open(file_name, std::ios::in | std::ios::binary);
-  // }
-  // catch (const std::exception &)
-  // {
-  //   std::cerr << "Error: " << strerror(errno) << std::endl;
-  // }
 }
 
 demux_service::~demux_service()
