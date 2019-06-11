@@ -35,6 +35,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SO
 #include <boost/asio/signal_set.hpp>
 
 #include <iostream>
+#include <fstream>
 #include <unordered_map>
 
 namespace po = boost::program_options;
