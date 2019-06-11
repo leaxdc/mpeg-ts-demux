@@ -34,8 +34,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SO
 #include <boost/asio/post.hpp>
 #include <boost/asio/signal_set.hpp>
 
-#include <iostream>
 #include <fstream>
+#include <iostream>
 #include <unordered_map>
 
 namespace po = boost::program_options;
@@ -45,7 +45,6 @@ namespace
 {
 const std::string log_file_name = "mpeg-ts-demux_%Y%m%d_%H%M%S.log";
 using ofs_map_t = std::unordered_map<uint16_t, std::ofstream>;
-
 } // namespace
 
 int main(int argc, char *argv[])
@@ -94,7 +93,6 @@ int main(int argc, char *argv[])
 
     signal_set.async_wait([&svc](const auto &ec, int sig_code) {
       BOOST_LOG_TRIVIAL(trace) << "Got signal: " << sig_code << "; stopping...";
-
       if (ec)
       {
         BOOST_LOG_TRIVIAL(error) << "Error: " << ec.message();
@@ -106,7 +104,6 @@ int main(int argc, char *argv[])
     svc.start();
 
     int ret = signal_handling_ctx.run();
-
     svc.join();
 
     BOOST_LOG_TRIVIAL(info) << "Exitting...";
