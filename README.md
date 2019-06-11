@@ -1,6 +1,6 @@
 # mpeg-ts-demux
 
-mpeg-ts-demux is a simple demultiplexer capable of extracting only media streams from MPEG transport stream and saving them to separate files
+mpeg-ts-demux is a simple demultiplexer capable of extracting only media streams from MPEG transport stream and saving them to separate files which should be playable with ffplay: https://ffmpeg.org/ffplay.html
 
 # Build
 ### Platforms supported
