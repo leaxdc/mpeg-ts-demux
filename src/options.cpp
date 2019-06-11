@@ -39,17 +39,18 @@ namespace fs = boost::filesystem;
 bool options::parse(int argc, char *argv[])
 {
   po::options_description desc("Options");
-  bool log_ts_packets = false;
-  bool log_pes_packets = false;
+  bool log_ts_packets;
+  bool log_pes_packets;
 
   using log::trivial::severity_level;
 
-  desc.add_options()("help", "produce help message")(
-      "output_dir,o", po::value(&_output_dir), "output directory")("log_level,l",
-      po::value<severity_level>(&_log_level)->default_value(severity_level::info),
-      "log level [trace, debug, info, warning, error, fatal]")("log_ts_packets",
-      po::bool_switch(&log_ts_packets),
-      "log TS packets")("log_pes_packets", po::bool_switch(&log_pes_packets), "log PES packets");
+  desc.add_options()
+    ("help", "produce help message")
+    ("output_dir,o", po::value(&_output_dir), "output directory")
+    ("log_level,l", po::value<severity_level>(&_log_level)->default_value(severity_level::info),
+      "log level [trace, debug, info, warning, error, fatal]")
+    ("log_ts_packets", po::bool_switch(&log_ts_packets)->default_value(false), "log TS packets")
+    ("log_pes_packets", po::bool_switch(&log_pes_packets)->default_value(false), "log PES packets");
 
   auto print_help = [&]() {
     std::cout << "Usage: " << argv[0] << " [options] <input_file_name>"
