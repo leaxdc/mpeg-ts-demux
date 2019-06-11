@@ -15,13 +15,15 @@ Run *./build.sh*. Executable will be written to *./build/ folder*
 
 # Help
 
-## MPEG-TS documentation
+### MPEG-TS documentation
 
 - https://tsduck.io/download/docs/mpegts-introduction.pdf
 - https://en.wikipedia.org/wiki/MPEG_transport_stream
 
-## Tool usage
+### Tool usage
 
 Run *./build/mpeg-ts-demux --help* for options
 
-License
+### License
+
+MIT
