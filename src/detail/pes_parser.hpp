@@ -22,8 +22,8 @@ namespace detail
   struct pes_packet_details_t : pes_packet_t
   {
     uint8_t *out_ptr;
-    pes_packet_details_t(size_t data_size, size_t stream_id)
-        : pes_packet_t(pes_packet_t::tag(), data_size, stream_id), out_ptr(&data[0])
+    pes_packet_details_t(uint16_t pid, size_t data_size)
+        : pes_packet_t(pid, data_size), out_ptr(&data[0])
     {
     }
   };
@@ -49,7 +49,10 @@ namespace detail
     template <typename pes_packet_callback_t>
     void flush(pes_packet_callback_t callback)
     {
-
+      for (auto &v: _pid_to_pes_packet)
+      {
+        callback(std::move(v.second));
+      }
     }
 
     template <typename pes_packet_callback_t>
@@ -62,13 +65,10 @@ namespace detail
         uint32_t start_code = boost::endian::big_to_native(
             *reinterpret_cast<const uint32_t *>(ts_packet.pes_offset_ptr));
 
-        if (!(start_code & 0x0100))
-        {
-          BOOST_LOG_TRIVIAL(trace) << "Not a PES packet, skipping";
-          return;
-        }
+        std::stringstream ss;
+        ss << std::hex << start_code;
 
-        uint8_t stream_id = (start_code & 0xFF);
+        BOOST_LOG_TRIVIAL(trace) << "Maybe PES start code: " << ss.str();
 
         uint16_t pes_length = boost::endian::big_to_native(
             *reinterpret_cast<const uint16_t *>(ts_packet.pes_offset_ptr + sizeof(uint32_t)));
@@ -77,18 +77,18 @@ namespace detail
         {
           boost::property_tree::ptree pt;
 
-          {
-            std::stringstream ss;
-            ss << std::hex << start_code;
-
-            pt.put("pes_preparsed_header.start_code_hex", ss.str());
-          }
-
-          pt.put("pes_preparsed_header.stream_id", stream_id);
+          pt.put("pes_preparsed_header.start_code_hex", ss.str());
+          pt.put("pes_preparsed_header.pes_length", pes_length);
 
           std::stringstream ss;
           boost::property_tree::json_parser::write_json(ss, pt);
           BOOST_LOG_TRIVIAL(trace) << ss.str();
+        }
+
+        if (!(start_code & 0x0100))
+        {
+          BOOST_LOG_TRIVIAL(trace) << "Not a PES packet, skipping";
+          return;
         }
 
         it = _pid_to_pes_packet.find(ts_packet.pid);
@@ -100,8 +100,8 @@ namespace detail
 
         bool inserted;
         std::tie(it, inserted) = _pid_to_pes_packet.insert(std::make_pair(ts_packet.pid,
-            std::make_unique<pes_packet_details_t>(
-                pes_length + sizeof(start_code) + sizeof(pes_length), stream_id)));
+            std::make_unique<pes_packet_details_t>(ts_packet.pid,
+                pes_length + sizeof(start_code) + sizeof(pes_length))));
       }
       else
       {

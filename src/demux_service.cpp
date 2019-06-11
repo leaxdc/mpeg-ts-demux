@@ -1,5 +1,6 @@
 #include "demux_service.h"
 #include "detail/ts_parser.h"
+#include "detail/pes_parser.hpp"
 
 #include <boost/log/trivial.hpp>
 #include <boost/thread.hpp>
@@ -42,10 +43,11 @@ public:
         ifs.exceptions(exception_mask);
         ifs.open(_file_name, std::ios::in | std::ios::binary);
 
-        detail::ts_parser parser;
+        detail::ts_parser ts_parser;
+        detail::pes_parser pes_parser;
 
         int i=0;
-        while (!ifs.eof() && i++ < 10)
+        while (!ifs.eof() && i++ < 50)
         {
             boost::this_thread::interruption_point();
 
@@ -54,12 +56,14 @@ public:
             ifs.read(reinterpret_cast<char*>(ts_packet.data.data()), ts_packet.data.size());
 
             /*auto pes_offset = */
-            auto ts_packet_opt = parser.parse(std::move(ts_packet));
+            auto ts_packet_opt = ts_parser.parse(std::move(ts_packet));
             if (ts_packet_opt)
             {
-
+              pes_parser.parse(std::move(*ts_packet_opt), _callback);
             }
         }
+
+        pes_parser.flush(_callback);
       }
       catch (const boost::thread_interrupted &)
       {

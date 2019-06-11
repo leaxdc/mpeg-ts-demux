@@ -48,7 +48,7 @@ namespace detail
       pt.put("ts_header.bytes_hex", num_to_hex(header, false));
       pt.put("ts_header.fields.transport_error_indicator", transport_error);
       pt.put("ts_header.fields.PUSI", pusi);
-      pt.put("ts_header.fields.PID", num_to_hex(pid, true));
+      pt.put("ts_header.fields.PID", num_to_hex(boost::endian::big_to_native(pid), true));
       pt.put("ts_header.fields.continuity_cnt", continuity_cnt);
       pt.put("ts_header.fields.adaptation_field_ctl", adaptation_field_ctl);
 
