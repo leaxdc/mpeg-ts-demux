@@ -6,7 +6,6 @@
 #include <boost/filesystem.hpp>
 #include <boost/program_options.hpp>
 
-
 namespace mpegts
 {
 namespace po = boost::program_options;
@@ -16,8 +15,8 @@ namespace fs = boost::filesystem;
 bool options::parse(int argc, char *argv[])
 {
   po::options_description desc("Options");
-  bool log_ts_packets;
-  bool log_pes_packets;
+  bool log_ts_packets = false;
+  bool log_pes_packets = false;
 
   using log::trivial::severity_level;
 
@@ -25,13 +24,8 @@ bool options::parse(int argc, char *argv[])
       "output_dir,o", po::value(&_output_dir), "output directory")("log_level,l",
       po::value<severity_level>(&_log_level)->default_value(severity_level::info),
       "log level [trace, debug, info, warning, error, fatal]")("log_ts_packets",
-      po::bool_switch(&log_ts_packets)->default_value(false),
-      "log TS packets(works together with log_level=trace)")("log_pes_packets",
-      po::bool_switch(&log_pes_packets)->default_value(false),
-      "log TS packets(works together with log_level=trace)");
-
-  logger::log_ts_packets = log_ts_packets;
-  logger::log_pes_packets = log_pes_packets;
+      po::bool_switch(&log_ts_packets),
+      "log TS packets")("log_pes_packets", po::bool_switch(&log_pes_packets), "log PES packets");
 
   auto print_help = [&]() {
     std::cout << "Usage: " << argv[0] << " [options] <input_file_name>"
@@ -65,6 +59,8 @@ bool options::parse(int argc, char *argv[])
   try
   {
     po::notify(vm);
+    logger::log_ts_packets = log_ts_packets;
+    logger::log_pes_packets = log_pes_packets;
   }
   catch (const po::error &)
   {
@@ -101,6 +97,8 @@ void options::print() const
   BOOST_LOG_TRIVIAL(info) << "Input file name: " << _input_file;
   BOOST_LOG_TRIVIAL(info) << "Output directory: " << _output_dir;
   BOOST_LOG_TRIVIAL(info) << "Log level: " << _log_level;
+  BOOST_LOG_TRIVIAL(info) << "Log TS packets: " << logger::log_ts_packets;
+  BOOST_LOG_TRIVIAL(info) << "Log PES packets: " << logger::log_pes_packets;
 }
 
 } // namespace mpegts

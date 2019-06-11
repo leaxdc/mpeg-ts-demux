@@ -13,7 +13,7 @@ namespace mpegts
 {
 namespace detail
 {
-  bool ts_parser::parse(ts_packet_t& ts_packet)
+  bool ts_parser::parse(ts_packet_t &ts_packet)
   {
     // converting to big endian because using big endian masks from the documentation:
     // https://en.wikipedia.org/wiki/MPEG_transport_stream#Important_elements_of_a_transport_stream
@@ -37,8 +37,7 @@ namespace detail
 
     uint8_t adaptation_field_ctl = (header & 0x30) >> 4;
 
-    if (logger::current_severity_level.load() == boost::log::trivial::severity_level::trace &&
-        logger::log_ts_packets)
+    if (logger::log_ts_packets)
     {
       boost::property_tree::ptree pt;
 
@@ -51,7 +50,7 @@ namespace detail
 
       std::stringstream ss;
       boost::property_tree::json_parser::write_json(ss, pt);
-      BOOST_LOG_TRIVIAL(trace) << "TS packet: " << ss.str();
+      BOOST_LOG_TRIVIAL(info) << "TS packet #" << _ts_packet_num++ << ": " << ss.str();
     }
 
     if (transport_error)
@@ -81,9 +80,10 @@ namespace detail
     const auto it = _pid_to_continuity_cnt.find(pid);
     if (_pid_to_continuity_cnt.find(pid) != _pid_to_continuity_cnt.end())
     {
-      if (continuity_cnt - it->second != 1 && continuity_cnt != 15 && it->second != 0)
+      if (continuity_cnt - it->second != 1 && it->second != 15 && continuity_cnt != 0)
       {
-        BOOST_LOG_TRIVIAL(warning) << "TS packet loss detected";
+        BOOST_LOG_TRIVIAL(warning)
+            << "TS packet loss detected, PID: " << utils::num_to_hex(ts_packet.pid, true);
       }
     }
 

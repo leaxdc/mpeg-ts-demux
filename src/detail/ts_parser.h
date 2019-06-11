@@ -14,6 +14,7 @@ namespace detail
 
   private:
     std::unordered_map<uint16_t, int8_t> _pid_to_continuity_cnt;
+    uint64_t _ts_packet_num = 0;
   };
 
 } // namespace detail

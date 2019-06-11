@@ -131,6 +131,7 @@ namespace detail
   private:
     using pid_to_pes_packet_map_t = std::unordered_map<uint16_t, pes_packet_impl_t>;
     pid_to_pes_packet_map_t _pid_to_pes_packet;
+    uint64_t _pes_packet_num = 0;
 
     template <typename pes_packet_callback_t>
     void handle_ready_pes_packet(
@@ -141,8 +142,7 @@ namespace detail
 
       uint8_t payload_offset = ((opt_pes_header & 0xff00) >> 8) + MIN_PES_OPT_HEADER_SIZE;
 
-      if (logger::current_severity_level.load() == boost::log::trivial::severity_level::trace &&
-          logger::log_pes_packets)
+      if (logger::log_pes_packets)
       {
         boost::property_tree::ptree pt;
 
@@ -152,7 +152,7 @@ namespace detail
 
         std::stringstream ss;
         boost::property_tree::json_parser::write_json(ss, pt);
-        BOOST_LOG_TRIVIAL(trace) << "PES packet: " << ss.str();
+        BOOST_LOG_TRIVIAL(info) << "PES packet #" << _pes_packet_num++ << ": " << ss.str();
       }
 
       callback(pes_packet_t{it->first,

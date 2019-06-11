@@ -36,7 +36,7 @@ public:
     _processing_thread = std::make_unique<boost::thread>([this]() {
       try
       {
-        BOOST_LOG_TRIVIAL(trace) << "Starting processing of file: " << _file_name;
+        BOOST_LOG_TRIVIAL(info) << "Starting processing of file: " << _file_name;
 
         std::ifstream ifs;
         auto exception_mask = ifs.exceptions() | std::ios::failbit;
@@ -70,6 +70,10 @@ public:
       {
         BOOST_LOG_TRIVIAL(trace) << "Processing tread interrupted.";
       }
+      catch (const std::ios_base::failure&)
+      {
+        BOOST_LOG_TRIVIAL(error) << strerror(errno);
+      }
       catch (const std::exception &e)
       {
         BOOST_LOG_TRIVIAL(error) << e.what();
@@ -92,7 +96,7 @@ public:
     {
       BOOST_LOG_TRIVIAL(trace) << "Joining processing thread...";
       _processing_thread->join();
-      BOOST_LOG_TRIVIAL(trace) << "Processing thread finished.";
+      BOOST_LOG_TRIVIAL(info) << "Processing thread finished.";
     }
   }
 

@@ -60,14 +60,14 @@ int main(int argc, char *argv[])
             ofs.open((boost::filesystem::path(options.get_oputput_directory()) /
                          utils::num_to_hex(packet.pid, true))
                          .string(),
-                std::ios::out | std::ios::binary);
+                std::ios::out | std::ios::binary | std::ios::trunc);
             bool inserted;
             std::tie(it, inserted) = ofs_map->insert(std::make_pair(packet.pid, std::move(ofs)));
           }
 
           BOOST_LOG_TRIVIAL(trace)
               << "Got PES packet with PID: " << utils::num_to_hex(packet.pid, true)
-              << "and payload length: " << packet.payload.length;
+              << " and payload length: " << packet.payload.length;
 
           it->second.write(
               reinterpret_cast<const char *>(packet.payload.data), packet.payload.length);
@@ -76,7 +76,7 @@ int main(int argc, char *argv[])
     asio::signal_set signal_set(main_context, SIGINT, SIGTERM);
 
     signal_set.async_wait([&svc](const auto &ec, int sig_code) {
-      BOOST_LOG_TRIVIAL(trace) << "Got signal: " << sig_code << "stopping...";
+      BOOST_LOG_TRIVIAL(trace) << "Got signal: " << sig_code << "; stopping...";
 
       if (ec)
       {
