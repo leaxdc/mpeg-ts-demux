@@ -45,7 +45,6 @@ namespace
 {
 const std::string log_file_name = "mpeg-ts-demux_%Y%m%d_%H%M%S.log";
 using ofs_map_t = std::unordered_map<uint16_t, std::ofstream>;
-using ofs_map_uptr = std::unique_ptr<ofs_map_t, std::function<void(ofs_map_t *)>>;
 
 } // namespace
 
@@ -65,17 +64,12 @@ int main(int argc, char *argv[])
 
     asio::io_context signal_handling_ctx;
 
-    auto ofs_map = ofs_map_uptr(new ofs_map_t(), [](ofs_map_t *map) {
-      for (auto &value : *map)
-      {
-        value.second.close();
-      }
-    });
+    ofs_map_t ofs_map;
 
     mpegts::demux_service svc(options.get_input_file_name(), signal_handling_ctx,
         [&ofs_map, &options](const mpegts::pes_packet_t &packet) {
-          auto it = ofs_map->find(packet.pid);
-          if (it == ofs_map->end())
+          auto it = ofs_map.find(packet.pid);
+          if (it == ofs_map.end())
           {
             std::ofstream ofs;
             auto exception_mask = ofs.exceptions() | std::ios::failbit;
@@ -85,7 +79,7 @@ int main(int argc, char *argv[])
                          .string(),
                 std::ios::out | std::ios::binary | std::ios::trunc);
             bool inserted;
-            std::tie(it, inserted) = ofs_map->insert(std::make_pair(packet.pid, std::move(ofs)));
+            std::tie(it, inserted) = ofs_map.insert(std::make_pair(packet.pid, std::move(ofs)));
           }
 
           BOOST_LOG_TRIVIAL(trace)
