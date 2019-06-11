@@ -46,7 +46,7 @@ namespace detail
 
     if ((header & 0xff000000) != 0x47000000)
     {
-      // TS packet sync byte is invalid (expected 0x47), skipping
+      BOOST_LOG_TRIVIAL(trace) << "TS packet sync byte is invalid (expected 0x47), skipping";
       return false;
     }
 
