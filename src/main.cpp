@@ -6,7 +6,8 @@ Permission is hereby granted, free of charge,
 to any person obtaining a copy of this software and associated documentation files( the "Software"),
 to deal in the Software without restriction, including without limitation the rights to use,
 copy, modify, merge, publish, distribute, sublicense, and / or sell copies of the Software,
-and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+and to permit persons to whom the Software is furnished to do so, subject to the following
+conditions:
 
 The above copyright notice and this permission notice shall be included in all copies or
 substantial portions of the Software.
@@ -61,7 +62,7 @@ int main(int argc, char *argv[])
     logger::init(options.get_log_severity_level(), log_file_name);
     options.print();
 
-    asio::io_context main_context;
+    asio::io_context signal_handling_ctx;
 
     auto ofs_map = ofs_map_uptr(new ofs_map_t(), [](ofs_map_t *map) {
       for (auto &value : *map)
@@ -70,7 +71,7 @@ int main(int argc, char *argv[])
       }
     });
 
-    mpegts::demux_service svc(options.get_input_file_name(), main_context,
+    mpegts::demux_service svc(options.get_input_file_name(), signal_handling_ctx,
         [&ofs_map, &options](const mpegts::pes_packet_t &packet) {
           auto it = ofs_map->find(packet.pid);
           if (it == ofs_map->end())
@@ -94,7 +95,7 @@ int main(int argc, char *argv[])
               reinterpret_cast<const char *>(packet.payload.data), packet.payload.length);
         });
 
-    asio::signal_set signal_set(main_context, SIGINT, SIGTERM);
+    asio::signal_set signal_set(signal_handling_ctx, SIGINT, SIGTERM);
 
     signal_set.async_wait([&svc](const auto &ec, int sig_code) {
       BOOST_LOG_TRIVIAL(trace) << "Got signal: " << sig_code << "; stopping...";
@@ -109,7 +110,7 @@ int main(int argc, char *argv[])
 
     svc.start();
 
-    int ret = main_context.run();
+    int ret = signal_handling_ctx.run();
 
     svc.join();
 

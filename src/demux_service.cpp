@@ -6,7 +6,8 @@ Permission is hereby granted, free of charge,
 to any person obtaining a copy of this software and associated documentation files( the "Software"),
 to deal in the Software without restriction, including without limitation the rights to use,
 copy, modify, merge, publish, distribute, sublicense, and / or sell copies of the Software,
-and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+and to permit persons to whom the Software is furnished to do so, subject to the following
+conditions:
 
 The above copyright notice and this permission notice shall be included in all copies or
 substantial portions of the Software.
@@ -36,9 +37,9 @@ namespace mpegts
 class demux_service::impl
 {
 public:
-  impl(const std::string &file_name, boost::asio::io_context &signal_listening_context,
+  impl(const std::string &file_name, boost::asio::io_context &signal_handling_ctx,
       packet_received_callback_t callback)
-      : _file_name(file_name), _signal_listening_context(signal_listening_context),
+      : _file_name(file_name), _signal_handling_ctx(signal_handling_ctx),
         _callback(std::move(callback))
   {
     if (!_callback)
@@ -91,7 +92,7 @@ public:
       {
         BOOST_LOG_TRIVIAL(trace) << "Processing tread interrupted.";
       }
-      catch (const std::ios_base::failure&)
+      catch (const std::ios_base::failure &)
       {
         BOOST_LOG_TRIVIAL(error) << strerror(errno);
       }
@@ -99,7 +100,7 @@ public:
       {
         BOOST_LOG_TRIVIAL(error) << e.what();
       }
-      _signal_listening_context.stop();
+      _signal_handling_ctx.stop();
     });
   }
   void stop()
@@ -130,14 +131,14 @@ public:
 
 private:
   const std::string _file_name;
-  boost::asio::io_context &_signal_listening_context;
+  boost::asio::io_context &_signal_handling_ctx;
   packet_received_callback_t _callback;
   std::unique_ptr<boost::thread> _processing_thread;
 };
 
 demux_service::demux_service(const std::string &file_name,
-    boost::asio::io_context &signal_listening_context, packet_received_callback_t callback)
-    : _impl(std::make_unique<impl>(file_name, signal_listening_context, std::move(callback)))
+    boost::asio::io_context &signal_handling_ctx, packet_received_callback_t callback)
+    : _impl(std::make_unique<impl>(file_name, signal_handling_ctx, std::move(callback)))
 {
 }
 
