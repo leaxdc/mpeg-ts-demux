@@ -6,7 +6,8 @@ Permission is hereby granted, free of charge,
 to any person obtaining a copy of this software and associated documentation files( the "Software"),
 to deal in the Software without restriction, including without limitation the rights to use,
 copy, modify, merge, publish, distribute, sublicense, and / or sell copies of the Software,
-and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+and to permit persons to whom the Software is furnished to do so, subject to the following
+conditions:
 
 The above copyright notice and this permission notice shall be included in all copies or
 substantial portions of the Software.
@@ -121,13 +122,13 @@ namespace detail
           handle_ready_pes_packet(it, callback);
 
           // reusing PES packet avoids reallocating of std::array member
-          it->second.reset(stream_id, (!pes_length ? MAX_PES_PAYLOAD_SIZE : pes_length));
+          it->second.reset(stream_id, pes_length);
         }
         else
         {
           bool inserted;
-          std::tie(it, inserted) = _pid_to_pes_packet.insert(std::make_pair(ts_packet.pid,
-              pes_packet_impl_t{stream_id, (!pes_length ? MAX_PES_PAYLOAD_SIZE : pes_length)}));
+          std::tie(it, inserted) = _pid_to_pes_packet.insert(
+              std::make_pair(ts_packet.pid, pes_packet_impl_t{stream_id, pes_length}));
         }
       }
       else
@@ -162,6 +163,7 @@ namespace detail
           boost::endian::big_to_native(*reinterpret_cast<const uint32_t *>(it->second.data.data()));
 
       uint8_t payload_offset = ((opt_pes_header & 0xff00) >> 8) + MIN_PES_OPT_HEADER_SIZE;
+      auto payload_length = it->second.cur_data_length - payload_offset;
 
       if (logger::log_pes_packets)
       {
@@ -170,15 +172,15 @@ namespace detail
         pt.put("pes_packet.ts_packet_pid", utils::num_to_hex(it->first, true));
         pt.put("pes_packet.stream_id", utils::num_to_hex(it->second.stream_id, false));
         pt.put("pes_packet.length", it->second.length);
+        pt.put("pes_packet.payload_length", payload_length);
 
         std::stringstream ss;
         boost::property_tree::json_parser::write_json(ss, pt);
         BOOST_LOG_TRIVIAL(info) << "PES packet #" << _pes_packet_num++ << ": " << ss.str();
       }
 
-      callback(pes_packet_t{it->first,
-          buffer_slice{it->second.data.data() + payload_offset,
-              it->second.cur_data_length - payload_offset}});
+      callback(pes_packet_t{
+          it->first, buffer_slice{it->second.data.data() + payload_offset, payload_length}});
     }
   };
 
