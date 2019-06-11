@@ -142,7 +142,7 @@ namespace detail
         }
       }
 
-      const auto ts_pes_length = ts_packet.data.size() - ts_packet.pes_offset;
+      auto ts_pes_length = ts_packet.data.size() - ts_packet.pes_offset;
 
       memcpy(&it->second.data[0] + it->second.cur_data_length,
           ts_packet.data.data() + ts_packet.pes_offset, ts_pes_length);
