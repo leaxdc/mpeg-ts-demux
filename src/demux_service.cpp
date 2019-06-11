@@ -55,7 +55,6 @@ public:
             ifs.read(reinterpret_cast<char*>(&ts_packet.header), sizeof(uint32_t));
             ifs.read(reinterpret_cast<char*>(ts_packet.data.data()), ts_packet.data.size());
 
-            /*auto pes_offset = */
             auto ts_packet_opt = ts_parser.parse(std::move(ts_packet));
             if (ts_packet_opt)
             {

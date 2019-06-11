@@ -1,29 +1,30 @@
 #pragma once
 
-#include <memory>
-#include <vector>
 #include <functional>
+#include <vector>
 
 namespace mpegts
 {
-
 namespace detail
 {
-struct pes_packet_details_t;
+  class pes_parser;
 } // namespace detail
 
 using byte_vec = std::vector<uint8_t>;
+struct pes_data
+{
+  byte_vec buffer;
+  size_t length;
+};
 
 struct pes_packet_t
 {
-protected:
-  pes_packet_t(uint16_t pid, size_t data_size) : pid(pid), data(data_size)
+  pes_packet_t(uint16_t pid, size_t buffer_size) : pid(pid), data{byte_vec(buffer_size), 0}
   {
   }
 
-public:
   uint16_t pid;
-  byte_vec data;
+  pes_data data;
 
   virtual ~pes_packet_t() = default;
   pes_packet_t(const pes_packet_t &) = delete;
@@ -31,10 +32,9 @@ public:
   pes_packet_t(pes_packet_t &&) = default;
   pes_packet_t &operator=(pes_packet_t &&) = default;
 
-  friend struct pes_packet_details_t;
+  friend class pes_parser;
 };
 
-using pes_packet_uptr = std::unique_ptr<pes_packet_t>;
-using packet_received_callback_t = std::function<void(pes_packet_uptr)>;
+using packet_received_callback_t = std::function<void(const pes_packet_t&)>;
 
 } // namespace mpegts

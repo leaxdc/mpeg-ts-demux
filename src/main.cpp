@@ -37,7 +37,7 @@ int main(int argc, char *argv[])
 
     asio::io_context main_context;
     mpegts::demux_service svc(
-        options.get_input_file_name(), main_context, [](mpegts::pes_packet_uptr packet) {
+        options.get_input_file_name(), main_context, [](const mpegts::pes_packet_t& packet) {
 
         });
 

@@ -16,7 +16,7 @@ namespace detail
     // converting to big endian because masks in the documentation are big endian:
     // https://en.wikipedia.org/wiki/MPEG_transport_stream#Important_elements_of_a_transport_stream
 
-    const auto header = boost::endian::native_to_big(ts_packet.header);
+    auto header = boost::endian::native_to_big(ts_packet.header);
 
     if ((header & 0xff000000) != 0x47000000)
     {
@@ -30,7 +30,7 @@ namespace detail
     bool pusi = static_cast<bool>(header & 0x400000);
     ts_packet.pusi = pusi;
 
-    uint16_t pid = (header & 0x1fff00);
+    uint16_t pid = (header & 0x1fff00) >> 8;
     ts_packet.pid = pid;
 
     uint8_t adaptation_field_ctl = (header & 0x30) >> 4;
@@ -48,7 +48,7 @@ namespace detail
       pt.put("ts_header.bytes_hex", num_to_hex(header, false));
       pt.put("ts_header.fields.transport_error_indicator", transport_error);
       pt.put("ts_header.fields.PUSI", pusi);
-      pt.put("ts_header.fields.PID", num_to_hex(boost::endian::big_to_native(pid), true));
+      pt.put("ts_header.fields.PID", num_to_hex(pid, true));
       pt.put("ts_header.fields.continuity_cnt", continuity_cnt);
       pt.put("ts_header.fields.adaptation_field_ctl", adaptation_field_ctl);
 
@@ -69,7 +69,7 @@ namespace detail
       return {};
     }
 
-    if (!((pid >= 0x0020 && pid > 0x1FFA) || (pid >= 0x1FFC && pid <= 0x1FFE)))
+    if (!((pid >= 0x20 && pid <= 0x1FFA) || (pid >= 0x1FFC && pid <= 0x1FFE)))
     {
       BOOST_LOG_TRIVIAL(trace) << "TS packet PID is outside of tables or PES range, skipping";
       return {};
@@ -77,8 +77,8 @@ namespace detail
 
     if (adaptation_field_ctl == 0x3)
     {
-      uint8_t adaptaion_field_len = *ts_packet.pes_offset_ptr;
-      ts_packet.pes_offset_ptr += adaptaion_field_len;
+      uint8_t adaptaion_field_len = *(ts_packet.data.data() + ts_packet.pes_offset);
+      ts_packet.pes_offset += adaptaion_field_len;
       BOOST_LOG_TRIVIAL(trace) << "Skipped TS adaptation field of len: "
                                << static_cast<uint32_t>(adaptaion_field_len);
     }

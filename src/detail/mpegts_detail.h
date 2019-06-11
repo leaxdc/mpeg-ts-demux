@@ -16,15 +16,16 @@ namespace detail
     ts_packet_data_t data;
     uint16_t pid;
     bool pusi;
-    uint8_t *pes_offset_ptr;
+    size_t pes_offset;
 
-    ts_packet_t() : header(0), pid(0), pusi(false), pes_offset_ptr(data.data())
+    ts_packet_t() : header(0), pid(0), pusi(false), pes_offset(0)
     {
     }
 
     ts_packet_t(const ts_packet_t &) = delete;
     ts_packet_t &operator=(const ts_packet_t &) = delete;
-    ts_packet_t(ts_packet_t &&) = default;
+
+    ts_packet_t(ts_packet_t&&) = default;
     ts_packet_t &operator=(ts_packet_t &&) = default;
   };
 
