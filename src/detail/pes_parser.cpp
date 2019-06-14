@@ -109,8 +109,8 @@ namespace detail
       else
       {
         bool inserted;
-        std::tie(it, inserted) = _pid_to_pes_packet.insert(
-            std::make_pair(ts_packet.pid, pes_packet_impl_t{stream_id, pes_length}));
+        std::tie(it, inserted) = _pid_to_pes_packet.emplace(ts_packet.pid,
+          pes_packet_impl_t{stream_id, pes_length});
       }
     }
     else

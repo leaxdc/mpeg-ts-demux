@@ -77,7 +77,7 @@ int main(int argc, char *argv[])
                          .string(),
                 std::ios::out | std::ios::binary | std::ios::trunc);
             bool inserted;
-            std::tie(it, inserted) = ofs_map.insert(std::make_pair(packet.pid, std::move(ofs)));
+            std::tie(it, inserted) = ofs_map.emplace(packet.pid, std::move(ofs));
           }
 
           BOOST_LOG_TRIVIAL(trace)
