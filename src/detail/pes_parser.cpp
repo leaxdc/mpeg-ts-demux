@@ -53,16 +53,18 @@ namespace detail
     }
   }
 
-  void pes_parser::feed_ts_packet(ts_packet_t& ts_packet)
+  void pes_parser::feed_ts_packet(const ts_packet_t& ts_packet)
   {
     pid_to_pes_packet_map_t::iterator it;
+
+    auto offset = ts_packet.pes_offset;
 
     // start of PES packet
     if (ts_packet.pusi)
     {
       uint32_t start_code = boost::endian::big_to_native(
-          *reinterpret_cast<const uint32_t *>(ts_packet.data.data() + ts_packet.pes_offset));
-      ts_packet.pes_offset += sizeof(uint32_t);
+          *reinterpret_cast<const uint32_t *>(ts_packet.data.data() + offset));
+      offset += sizeof(uint32_t);
 
       // expected start code is 00 00 01 <stream_id byte>
       if (((start_code >> 8) & 0x01) != 0x01)
@@ -83,8 +85,8 @@ namespace detail
       }
 
       uint16_t pes_length = boost::endian::big_to_native(
-          *reinterpret_cast<const uint16_t *>(ts_packet.data.data() + ts_packet.pes_offset));
-      ts_packet.pes_offset += sizeof(uint16_t);
+          *reinterpret_cast<const uint16_t *>(ts_packet.data.data() + offset));
+      offset += sizeof(uint16_t);
 
       it = _pid_to_pes_packet.find(ts_packet.pid);
 
@@ -113,10 +115,10 @@ namespace detail
       }
     }
 
-    auto ts_pes_length = ts_packet.data.size() - ts_packet.pes_offset;
+    auto ts_pes_length = ts_packet.data.size() - offset;
 
     memcpy(&it->second.data[0] + it->second.cur_data_length,
-        ts_packet.data.data() + ts_packet.pes_offset, ts_pes_length);
+        ts_packet.data.data() + offset, ts_pes_length);
 
     it->second.cur_data_length += ts_pes_length;
   }
