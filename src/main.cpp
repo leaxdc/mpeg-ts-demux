@@ -76,6 +76,7 @@ int main(int argc, char *argv[])
                          utils::num_to_hex(packet.pid, true))
                          .string(),
                 std::ios::out | std::ios::binary | std::ios::trunc);
+            // Minor: inserted is not needed, it may be immediately obtained with .first
             bool inserted;
             std::tie(it, inserted) = ofs_map.emplace(packet.pid, std::move(ofs));
           }

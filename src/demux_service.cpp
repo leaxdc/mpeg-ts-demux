@@ -37,6 +37,8 @@ namespace mpegts
 class demux_service::impl
 {
 public:
+  // Minor: pass file_name by copy and move here. It express better intention that class captures
+  // string and do need to keep ref
   impl(const std::string &file_name, boost::asio::io_context &signal_handling_ctx,
       packet_received_callback_t callback)
       : _file_name(file_name), _signal_handling_ctx(signal_handling_ctx),
@@ -52,6 +54,7 @@ public:
   {
     if (_processing_thread)
     {
+      // Medium: it will throw from thread because thread is not joined,
       throw std::runtime_error("Processing is already started");
     }
 
@@ -69,6 +72,7 @@ public:
         detail::pes_parser pes_parser(_callback);
 
         // reusing ts_packet avoids reallocating of std::array member
+        // Minor: array allocates on stack, so it is always pre-allocated.
         detail::ts_packet_t ts_packet;
 
         while (!ifs.eof())
@@ -80,7 +84,10 @@ public:
 
           if (ts_parser.parse(ts_packet))
           {
+            // Minor: if ts_parser.parse returns option<ts_packet> then it can be passed by value
+            // here to summon copy elision
             pes_parser.feed_ts_packet(ts_packet);
+            // and then method is not needed
             ts_packet.reset();
           }
         }
@@ -114,6 +121,7 @@ public:
 
   void join()
   {
+    // Medium: need to check if thread is joinable otherwise it throws
     if (_processing_thread)
     {
       BOOST_LOG_TRIVIAL(trace) << "Joining processing thread...";
@@ -124,7 +132,9 @@ public:
 
   void reset()
   {
+    // Stop calls interrupt that is non-blocking
     stop();
+    // Thread may be not joinable yet here
     join();
     _processing_thread.reset();
   }

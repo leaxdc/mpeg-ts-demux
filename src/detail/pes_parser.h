@@ -33,6 +33,7 @@ namespace mpegts
 namespace detail
 {
   // https://ffmpeg.org/doxygen/3.2/mpegts_8c_source.html
+  // Minor: constexpr
   const size_t MAX_PES_PAYLOAD_SIZE = 1024 * 200;
 
   struct pes_packet_impl_t
@@ -48,6 +49,9 @@ namespace detail
       reset(stream_id, length);
     }
 
+    // Minor: I assume this method is needed to allow object reusing.
+    // However, array is allocated on stack thus it does not make much sense.
+    // Make it POD type without methods, use uniform initialization syntax.
     void reset(uint16_t stream_id, size_t length)
     {
       this->stream_id = stream_id;
@@ -68,6 +72,7 @@ namespace detail
   private:
     using pid_to_pes_packet_map_t = std::unordered_map<uint16_t, pes_packet_impl_t>;
 
+    // Minor: it may be const
     packet_received_callback_t _callback;
     pid_to_pes_packet_map_t _pid_to_pes_packet;
     uint64_t _pes_packet_num = 0;

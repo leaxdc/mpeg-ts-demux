@@ -53,6 +53,9 @@ namespace detail
     bool transport_error = (header & 0x800000);
     int8_t continuity_cnt = (header & 0xf);
 
+    // Why do you need temporary variable?
+    // Use ts_packet.pusi here and bellow.
+    // Or at least make it const
     bool pusi = static_cast<bool>(header & 0x400000);
     ts_packet.pusi = pusi;
 
@@ -97,11 +100,16 @@ namespace detail
 
     if (adaptation_field_ctl == 0x3)
     {
+      // Minor: ts_packet.data is array so you may use indexing instead
+      // ts_packet.data[ts_packet.pes_offset]
+      // Medium: possible out-of-bound error if data[0] >= 188
+      // also consider to add simple method to ts_packet that return this value
       uint8_t adaptaion_field_len = *(ts_packet.data.data() + ts_packet.pes_offset);
       ts_packet.pes_offset += sizeof(uint8_t) + adaptaion_field_len;
     }
 
     const auto it = _pid_to_continuity_cnt.find(pid);
+    // Minor: just use it here
     if (_pid_to_continuity_cnt.find(pid) != _pid_to_continuity_cnt.end())
     {
       if (continuity_cnt - it->second != 1 && it->second != 15 && continuity_cnt != 0)

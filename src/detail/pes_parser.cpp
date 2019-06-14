@@ -38,6 +38,7 @@ namespace detail
 {
   namespace
   {
+    // Minor: constexpr
     const size_t MIN_PES_OPT_HEADER_SIZE = 3;
 
     bool do_checks(uint32_t start_code, uint16_t stream_id)
@@ -67,6 +68,8 @@ namespace detail
 
   void pes_parser::flush()
   {
+    // Minor: Use std::foreach
+    // Try to avoid direct loops, they are noisy and hides an intention.
     for (auto it = _pid_to_pes_packet.begin(); it != _pid_to_pes_packet.end(); ++it)
     {
       handle_ready_pes_packet(it);
@@ -80,8 +83,10 @@ namespace detail
     auto offset = ts_packet.pes_offset;
 
     // start of PES packet
+    // Minor: Method is quite long, consider extracting PES packet processing into separate method
     if (ts_packet.pusi)
     {
+      // Minor: It may be const
       uint32_t start_code = boost::endian::big_to_native(
           *reinterpret_cast<const uint32_t *>(ts_packet.data.data() + offset));
       uint16_t stream_id = (start_code & 0xff) | 0x100;
@@ -104,10 +109,13 @@ namespace detail
         handle_ready_pes_packet(it);
 
         // reusing PES packet avoids reallocating of std::array member
+        // Array allocates on stack :)
         it->second.reset(stream_id, pes_length);
       }
       else
       {
+        // Do not need to have inserted var.
+        // Just take .first
         bool inserted;
         std::tie(it, inserted) = _pid_to_pes_packet.emplace(ts_packet.pid,
           pes_packet_impl_t{stream_id, pes_length});
@@ -126,6 +134,7 @@ namespace detail
 
     auto ts_pes_length = ts_packet.data.size() - offset;
 
+    // Minor: C-style hehehe. Use std::copy instead.
     memcpy(&it->second.data[0] + it->second.cur_data_length, ts_packet.data.data() + offset,
         ts_pes_length);
 
@@ -134,6 +143,7 @@ namespace detail
 
   void pes_parser::handle_ready_pes_packet(const pid_to_pes_packet_map_t::iterator &it)
   {
+    // Minor: Consider to add utility function that does conversion. DRY
     uint32_t opt_pes_header =
         boost::endian::big_to_native(*reinterpret_cast<const uint32_t *>(it->second.data.data()));
 

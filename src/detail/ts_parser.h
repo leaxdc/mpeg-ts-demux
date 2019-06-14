@@ -31,6 +31,7 @@ namespace detail
   class ts_parser
   {
   public:
+    // Minor: consider user option<ts_packet> for better expressing an intent
     bool parse(ts_packet_t &ts_packet);
 
   private:
