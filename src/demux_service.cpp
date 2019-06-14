@@ -21,7 +21,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SO
 */
 
 #include "demux_service.h"
-#include "detail/pes_parser.hpp"
+#include "detail/pes_parser.h"
 #include "detail/ts_parser.h"
 
 #include <array>
@@ -66,7 +66,7 @@ public:
         ifs.open(_file_name, std::ios::in | std::ios::binary);
 
         detail::ts_parser ts_parser;
-        detail::pes_parser pes_parser;
+        detail::pes_parser pes_parser(_callback);
 
         // reusing ts_packet avoids reallocating of std::array member
         detail::ts_packet_t ts_packet;
@@ -80,13 +80,13 @@ public:
 
           if (ts_parser.parse(ts_packet))
           {
-            pes_parser.parse(ts_packet, _callback);
+            pes_parser.feed_ts_packet(ts_packet);
             ts_packet.reset();
           }
         }
 
         BOOST_LOG_TRIVIAL(trace) << "Flushing...";
-        pes_parser.flush(_callback);
+        pes_parser.flush();
       }
       catch (const boost::thread_interrupted &)
       {
