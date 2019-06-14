@@ -62,7 +62,7 @@ namespace detail
   public:
     explicit pes_parser(packet_received_callback_t callback);
 
-    void feed_ts_packet(ts_packet_t ts_packet);
+    void feed_ts_packet(ts_packet_t& ts_packet);
     void flush();
 
   private:

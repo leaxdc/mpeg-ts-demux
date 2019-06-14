@@ -53,7 +53,7 @@ namespace detail
     }
   }
 
-  void pes_parser::feed_ts_packet(ts_packet_t ts_packet)
+  void pes_parser::feed_ts_packet(ts_packet_t& ts_packet)
   {
     pid_to_pes_packet_map_t::iterator it;
 
