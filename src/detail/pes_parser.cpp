@@ -39,6 +39,26 @@ namespace detail
   namespace
   {
     const size_t MIN_PES_OPT_HEADER_SIZE = 3;
+
+    bool do_checks(uint32_t start_code, uint16_t stream_id)
+    {
+      // expected start code is 00 00 01 <stream_id byte>
+      if (((start_code >> 8) & 0x01) != 0x01)
+      {
+        // not a PES packet
+        return false;
+      }
+      // https://ffmpeg.org/doxygen/3.2/mpegts_8c_source.html
+      if (stream_id == 0x1bc || stream_id == 0x1bf || /* program_stream_map, private_stream_2 */
+          stream_id == 0x1f0 || stream_id == 0x1f1 || /* ECM, EMM */
+          stream_id == 0x1ff || stream_id == 0x1f2 || /* program_stream_directory, DSMCC_stream */
+          stream_id == 0x1f8)
+      {
+        // PES doesn't contain a media stream
+        return false;
+      }
+      return true;
+    }
   } // namespace
 
   pes_parser::pes_parser(packet_received_callback_t callback) : _callback(std::move(callback))
@@ -53,7 +73,7 @@ namespace detail
     }
   }
 
-  void pes_parser::feed_ts_packet(const ts_packet_t& ts_packet)
+  void pes_parser::feed_ts_packet(const ts_packet_t &ts_packet)
   {
     pid_to_pes_packet_map_t::iterator it;
 
@@ -64,25 +84,14 @@ namespace detail
     {
       uint32_t start_code = boost::endian::big_to_native(
           *reinterpret_cast<const uint32_t *>(ts_packet.data.data() + offset));
-      offset += sizeof(uint32_t);
-
-      // expected start code is 00 00 01 <stream_id byte>
-      if (((start_code >> 8) & 0x01) != 0x01)
-      {
-        // not a PES packet
-        return;
-      }
-
-      // https://ffmpeg.org/doxygen/3.2/mpegts_8c_source.html
       uint16_t stream_id = (start_code & 0xff) | 0x100;
-      if (stream_id == 0x1bc || stream_id == 0x1bf || /* program_stream_map, private_stream_2 */
-          stream_id == 0x1f0 || stream_id == 0x1f1 || /* ECM, EMM */
-          stream_id == 0x1ff || stream_id == 0x1f2 || /* program_stream_directory, DSMCC_stream */
-          stream_id == 0x1f8)
+
+      if (!do_checks(start_code, stream_id))
       {
-        // PES doesn't contain a media stream
         return;
       }
+
+      offset += sizeof(uint32_t);
 
       uint16_t pes_length = boost::endian::big_to_native(
           *reinterpret_cast<const uint16_t *>(ts_packet.data.data() + offset));
@@ -117,8 +126,8 @@ namespace detail
 
     auto ts_pes_length = ts_packet.data.size() - offset;
 
-    memcpy(&it->second.data[0] + it->second.cur_data_length,
-        ts_packet.data.data() + offset, ts_pes_length);
+    memcpy(&it->second.data[0] + it->second.cur_data_length, ts_packet.data.data() + offset,
+        ts_pes_length);
 
     it->second.cur_data_length += ts_pes_length;
   }

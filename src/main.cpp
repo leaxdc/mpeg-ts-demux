@@ -38,7 +38,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SO
 #include <iostream>
 #include <unordered_map>
 
-namespace po = boost::program_options;
 namespace asio = boost::asio;
 
 namespace
@@ -106,7 +105,7 @@ int main(int argc, char *argv[])
     int ret = signal_handling_ctx.run();
     svc.join();
 
-    BOOST_LOG_TRIVIAL(info) << "Exitting...";
+    BOOST_LOG_TRIVIAL(info) << "Exiting...";
 
     return ret;
   }
