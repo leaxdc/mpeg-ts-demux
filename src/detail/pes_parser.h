@@ -25,44 +25,19 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SO
 #include "mpegts.h"
 #include "mpegts_detail.h"
 
-#include <limits>
 #include <unordered_map>
 
 namespace mpegts
 {
 namespace detail
 {
-  // https://ffmpeg.org/doxygen/3.2/mpegts_8c_source.html
-  const size_t MAX_PES_PAYLOAD_SIZE = 1024 * 200;
-
-  struct pes_packet_impl_t
-  {
-    uint16_t stream_id;
-    size_t length;
-
-    std::array<uint8_t, MAX_PES_PAYLOAD_SIZE> data;
-    size_t cur_data_length;
-
-    pes_packet_impl_t(uint16_t stream_id, size_t length)
-    {
-      reset(stream_id, length);
-    }
-
-    void reset(uint16_t stream_id, size_t length)
-    {
-      this->stream_id = stream_id;
-      this->length = length;
-      this->cur_data_length = 0;
-    }
-  };
-
   // pes packets builder
   class pes_parser
   {
   public:
     explicit pes_parser(packet_received_callback_t callback);
 
-    void feed_ts_packet(const ts_packet_t& ts_packet);
+    void feed_ts_packet(ts_packet_t ts_packet);
     void flush();
 
   private:
@@ -72,7 +47,7 @@ namespace detail
     pid_to_pes_packet_map_t _pid_to_pes_packet;
     uint64_t _pes_packet_num = 0;
 
-    void handle_ready_pes_packet(const pid_to_pes_packet_map_t::iterator &it);
+    void handle_ready_pes_packet(pid_to_pes_packet_map_t::value_type &v);
   };
 } // namespace detail
 } // namespace mpegts

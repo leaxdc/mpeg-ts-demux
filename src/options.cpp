@@ -6,7 +6,8 @@ Permission is hereby granted, free of charge,
 to any person obtaining a copy of this software and associated documentation files( the "Software"),
 to deal in the Software without restriction, including without limitation the rights to use,
 copy, modify, merge, publish, distribute, sublicense, and / or sell copies of the Software,
-and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+and to permit persons to whom the Software is furnished to do so, subject to the following
+conditions:
 
 The above copyright notice and this permission notice shall be included in all copies or
 substantial portions of the Software.
@@ -41,13 +42,12 @@ bool options::parse(int argc, char *argv[])
 
   using log::trivial::severity_level;
 
-  desc.add_options()
-    ("help", "produce help message")
-    ("output_dir,o", po::value(&_output_dir), "output directory")
-    ("log_level,l", po::value<severity_level>(&_log_level)->default_value(severity_level::info),
-      "log level [trace, debug, info, warning, error, fatal]")
-    ("log_ts_packets", po::bool_switch(&log_ts_packets)->default_value(false), "log TS packets")
-    ("log_pes_packets", po::bool_switch(&log_pes_packets)->default_value(false), "log PES packets");
+  desc.add_options()("help", "produce help message")(
+      "output_dir,o", po::value(&_output_dir), "output directory")("log_level,l",
+      po::value<severity_level>(&_log_level)->default_value(severity_level::info),
+      "log level [trace, debug, info, warning, error, fatal]")("log_ts_packets",
+      po::bool_switch(&log_ts_packets)->default_value(false), "log TS packets")("log_pes_packets",
+      po::bool_switch(&log_pes_packets)->default_value(false), "log PES packets");
 
   auto print_help = [&]() {
     std::cout << "Usage: " << argv[0] << " [options] <input_file_name>"
