@@ -26,8 +26,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SO
 
 #include <array>
 #include <fstream>
-#include <iomanip>
-#include <sstream>
 
 #include <boost/log/trivial.hpp>
 #include <boost/thread.hpp>
@@ -37,11 +35,9 @@ namespace mpegts
 class demux_service::impl
 {
 public:
-  // Minor: pass file_name by copy and move here. It express better intention that class captures
-  // string and do need to keep ref
-  impl(const std::string &file_name, boost::asio::io_context &signal_handling_ctx,
+  impl(std::string file_name, boost::asio::io_context &signal_handling_ctx,
       packet_received_callback_t callback)
-      : _file_name(file_name), _signal_handling_ctx(signal_handling_ctx),
+      : _file_name(std::move(file_name)), _signal_handling_ctx(signal_handling_ctx),
         _callback(std::move(callback))
   {
     if (!_callback)
@@ -52,11 +48,8 @@ public:
 
   void start()
   {
-    if (_processing_thread)
-    {
-      // Medium: it will throw from thread because thread is not joined,
-      throw std::runtime_error("Processing is already started");
-    }
+    stop();
+    join();
 
     _processing_thread = std::make_unique<boost::thread>([this]() {
       try
@@ -82,13 +75,9 @@ public:
           ifs.read(reinterpret_cast<char *>(&ts_packet.header), sizeof(uint32_t));
           ifs.read(reinterpret_cast<char *>(ts_packet.data.data()), ts_packet.data.size());
 
-          if (ts_parser.parse(ts_packet))
+          if (auto parsed_packet = ts_parser.parse(std::move(ts_packet)))
           {
-            // Minor: if ts_parser.parse returns option<ts_packet> then it can be passed by value
-            // here to summon copy elision
-            pes_parser.feed_ts_packet(ts_packet);
-            // and then method is not needed
-            ts_packet.reset();
+            pes_parser.feed_ts_packet(std::move(*parsed_packet));
           }
         }
 
@@ -110,9 +99,10 @@ public:
       _signal_handling_ctx.stop();
     });
   }
+
   void stop()
   {
-    if (_processing_thread)
+    if (_processing_thread )
     {
       BOOST_LOG_TRIVIAL(trace) << "Interrupting processing thread...";
       _processing_thread->interrupt();
@@ -127,16 +117,8 @@ public:
       BOOST_LOG_TRIVIAL(trace) << "Joining processing thread...";
       _processing_thread->join();
       BOOST_LOG_TRIVIAL(info) << "Processing thread finished.";
+      _processing_thread.reset();
     }
-  }
-
-  void reset()
-  {
-    // Stop calls interrupt that is non-blocking
-    stop();
-    // Thread may be not joinable yet here
-    join();
-    _processing_thread.reset();
   }
 
 private:
@@ -146,9 +128,9 @@ private:
   std::unique_ptr<boost::thread> _processing_thread;
 };
 
-demux_service::demux_service(const std::string &file_name,
-    boost::asio::io_context &signal_handling_ctx, packet_received_callback_t callback)
-    : _impl(std::make_unique<impl>(file_name, signal_handling_ctx, std::move(callback)))
+demux_service::demux_service(std::string file_name, boost::asio::io_context &signal_handling_ctx,
+    packet_received_callback_t callback)
+    : _impl(std::make_unique<impl>(std::move(file_name), signal_handling_ctx, std::move(callback)))
 {
 }
 
@@ -168,9 +150,5 @@ void demux_service::stop()
 void demux_service::join()
 {
   _impl->join();
-}
-void demux_service::reset()
-{
-  _impl->reset();
 }
 } // namespace mpegts

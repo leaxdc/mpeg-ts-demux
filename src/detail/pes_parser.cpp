@@ -21,16 +21,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SO
 */
 
 #include "pes_parser.h"
-#include "logger.h"
+#include "log_utils.h"
 #include "utils.hpp"
-
-#include <limits>
-#include <sstream>
 
 #include <boost/endian/conversion.hpp>
 #include <boost/log/trivial.hpp>
-#include <boost/property_tree/json_parser.hpp>
-#include <boost/property_tree/ptree.hpp>
 
 namespace mpegts
 {
@@ -41,19 +36,21 @@ namespace detail
     // Minor: constexpr
     const size_t MIN_PES_OPT_HEADER_SIZE = 3;
 
-    bool do_checks(uint32_t start_code, uint16_t stream_id)
+    bool do_checks(const pes_packet_impl_t &pes_packet)
     {
       // expected start code is 00 00 01 <stream_id byte>
-      if (((start_code >> 8) & 0x01) != 0x01)
+      if (((pes_packet.start_code >> 8) & 0x01) != 0x01)
       {
         // not a PES packet
         return false;
       }
       // https://ffmpeg.org/doxygen/3.2/mpegts_8c_source.html
-      if (stream_id == 0x1bc || stream_id == 0x1bf || /* program_stream_map, private_stream_2 */
-          stream_id == 0x1f0 || stream_id == 0x1f1 || /* ECM, EMM */
-          stream_id == 0x1ff || stream_id == 0x1f2 || /* program_stream_directory, DSMCC_stream */
-          stream_id == 0x1f8)
+      if (pes_packet.stream_id == 0x1bc ||
+          pes_packet.stream_id == 0x1bf || /* program_stream_map, private_stream_2 */
+          pes_packet.stream_id == 0x1f0 || pes_packet.stream_id == 0x1f1 || /* ECM, EMM */
+          pes_packet.stream_id == 0x1ff ||
+          pes_packet.stream_id == 0x1f2 || /* program_stream_directory, DSMCC_stream */
+          pes_packet.stream_id == 0x1f8)
       {
         // PES doesn't contain a media stream
         return false;
@@ -68,104 +65,108 @@ namespace detail
 
   void pes_parser::flush()
   {
-    // Minor: Use std::foreach
-    // Try to avoid direct loops, they are noisy and hides an intention.
-    for (auto it = _pid_to_pes_packet.begin(); it != _pid_to_pes_packet.end(); ++it)
-    {
-      handle_ready_pes_packet(it);
-    }
+    std::for_each(begin(_pid_to_pes_packet), end(_pid_to_pes_packet),
+        std::bind(&pes_parser::handle_ready_pes_packet, this, std::placeholders::_1));
   }
 
-  void pes_parser::feed_ts_packet(const ts_packet_t &ts_packet)
+  pid_to_pes_packet_map_t::iterator pes_parser::handle_pusi_packet(ts_packet_t &ts_packet)
   {
-    pid_to_pes_packet_map_t::iterator it;
+    pid_to_pes_packet_map_t::iterator map_it;
 
-    auto offset = ts_packet.pes_offset;
+    if (!ts_packet.pusi)
+    {
+      BOOST_LOG_TRIVIAL(warning) << "Not PUSI packet, skipping";
+      return map_it;
+    }
+
+    pes_packet_impl_t pes_packet{};
+
+    pes_packet.ts_packet_pid = ts_packet.pid;
+    pes_packet.start_code = boost::endian::big_to_native(
+        *reinterpret_cast<const uint32_t *>(&ts_packet.data[*ts_packet.pes_offset]));
+    pes_packet.stream_id = (pes_packet.start_code & 0xff) | 0x100;
+
+    if (!do_checks(pes_packet))
+    {
+      log_utils::log_pes_packet(pes_packet, _pes_packet_num++);
+      return map_it;
+    }
+
+    *ts_packet.pes_offset += sizeof(uint32_t);
+
+    pes_packet.max_length = boost::endian::big_to_native(
+        *reinterpret_cast<const uint16_t *>(&ts_packet.data[*ts_packet.pes_offset]));
+    *ts_packet.pes_offset += sizeof(uint16_t);
+
+    map_it = _pid_to_pes_packet.find(ts_packet.pid);
+
+    if (map_it != _pid_to_pes_packet.end())
+    {
+      handle_ready_pes_packet(*map_it);
+      std::swap(map_it->second, pes_packet);
+    }
+    else
+    {
+      map_it = _pid_to_pes_packet.emplace(ts_packet.pid, std::move(pes_packet)).first;
+    }
+
+    return map_it;
+  }
+
+  void pes_parser::feed_ts_packet(ts_packet_t ts_packet)
+  {
+    if (!ts_packet.pes_offset)
+    {
+      BOOST_LOG_TRIVIAL(warning) << "PES offset is not set, skipping";
+      return;
+    }
+
+    pid_to_pes_packet_map_t::iterator map_it;
 
     // start of PES packet
-    // Minor: Method is quite long, consider extracting PES packet processing into separate method
     if (ts_packet.pusi)
     {
-      // Minor: It may be const
-      uint32_t start_code = boost::endian::big_to_native(
-          *reinterpret_cast<const uint32_t *>(ts_packet.data.data() + offset));
-      uint16_t stream_id = (start_code & 0xff) | 0x100;
-
-      if (!do_checks(start_code, stream_id))
+      map_it = handle_pusi_packet(ts_packet);
+      if (map_it == _pid_to_pes_packet.end())
       {
         return;
-      }
-
-      offset += sizeof(uint32_t);
-
-      uint16_t pes_length = boost::endian::big_to_native(
-          *reinterpret_cast<const uint16_t *>(ts_packet.data.data() + offset));
-      offset += sizeof(uint16_t);
-
-      it = _pid_to_pes_packet.find(ts_packet.pid);
-
-      if (it != _pid_to_pes_packet.end())
-      {
-        handle_ready_pes_packet(it);
-
-        // reusing PES packet avoids reallocating of std::array member
-        // Array allocates on stack :)
-        it->second.reset(stream_id, pes_length);
-      }
-      else
-      {
-        // Do not need to have inserted var.
-        // Just take .first
-        bool inserted;
-        std::tie(it, inserted) = _pid_to_pes_packet.emplace(ts_packet.pid,
-          pes_packet_impl_t{stream_id, pes_length});
       }
     }
     else
     {
-      it = _pid_to_pes_packet.find(ts_packet.pid);
+      map_it = _pid_to_pes_packet.find(ts_packet.pid);
 
-      if (it == _pid_to_pes_packet.end())
+      if (map_it == _pid_to_pes_packet.end())
       {
         // PUSI bit is 0, but PID is not in map, skipping
         return;
       }
     }
 
-    auto ts_pes_length = ts_packet.data.size() - offset;
+    const auto ts_pes_length = ts_packet.data.size() - *ts_packet.pes_offset;
 
-    // Minor: C-style hehehe. Use std::copy instead.
-    memcpy(&it->second.data[0] + it->second.cur_data_length, ts_packet.data.data() + offset,
-        ts_pes_length);
+    const auto out_it = begin(map_it->second.data) + map_it->second.cur_length;
+    const auto in_it_start = cbegin(ts_packet.data) + *ts_packet.pes_offset;
+    const auto in_it_end = in_it_start + ts_pes_length;
 
-    it->second.cur_data_length += ts_pes_length;
+    std::copy(in_it_start, in_it_end, out_it);
+    map_it->second.cur_length += ts_pes_length;
   }
 
-  void pes_parser::handle_ready_pes_packet(const pid_to_pes_packet_map_t::iterator &it)
+  void pes_parser::handle_ready_pes_packet(pid_to_pes_packet_map_t::value_type &v)
   {
-    // Minor: Consider to add utility function that does conversion. DRY
-    uint32_t opt_pes_header =
-        boost::endian::big_to_native(*reinterpret_cast<const uint32_t *>(it->second.data.data()));
+    auto &pes_packet = v.second;
 
-    uint8_t payload_offset = ((opt_pes_header & 0xff00) >> 8) + MIN_PES_OPT_HEADER_SIZE;
-    auto payload_length = it->second.cur_data_length - payload_offset;
+    const uint32_t opt_pes_header =
+        boost::endian::big_to_native(*reinterpret_cast<const uint32_t *>(&pes_packet.data[0]));
 
-    if (logger::log_pes_packets)
-    {
-      boost::property_tree::ptree pt;
+    pes_packet.payload_offset = ((opt_pes_header & 0xff00) >> 8) + MIN_PES_OPT_HEADER_SIZE;
+    pes_packet.payload_length = pes_packet.cur_length - pes_packet.payload_offset;
 
-      pt.put("pes_packet.ts_packet_pid", utils::num_to_hex(it->first, true));
-      pt.put("pes_packet.stream_id", utils::num_to_hex(it->second.stream_id, false));
-      pt.put("pes_packet.length", it->second.length);
-      pt.put("pes_packet.payload_length", payload_length);
+    log_utils::log_pes_packet(pes_packet, _pes_packet_num);
 
-      std::stringstream ss;
-      boost::property_tree::json_parser::write_json(ss, pt);
-      BOOST_LOG_TRIVIAL(info) << "PES packet #" << _pes_packet_num++ << ": " << ss.str();
-    }
-
-    _callback(pes_packet_t{
-        it->first, buffer_slice{it->second.data.data() + payload_offset, payload_length}});
+    _callback(pes_packet_t{v.first,
+        buffer_slice{&pes_packet.data[pes_packet.payload_offset], pes_packet.payload_length}});
   }
 } // namespace detail
 } // namespace mpegts

@@ -11,15 +11,14 @@ find_package(Boost 1.66.0 REQUIRED COMPONENTS system filesystem program_options 
 file (GLOB_RECURSE SRC *.cpp)
 add_executable(${PROJECT_NAME} ${SRC})
 
-
-target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_14)
+target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_17)
 target_compile_options(${PROJECT_NAME} PRIVATE  -Wall -Werror -Wpedantic)
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR} ${Boost_INCLUDE_DIR})
 target_link_libraries(${PROJECT_NAME} PRIVATE ${Boost_LIBRARIES})
 target_compile_definitions(${PROJECT_NAME} PRIVATE BOOST_ALL_DYN_LINK)
 
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-  target_compile_options(${PROJECT_NAME} PRIVATE -g)
+  target_compile_options(${PROJECT_NAME} PRIVATE -g -O0)
 else()
   target_compile_options(${PROJECT_NAME} PRIVATE -O3)
 endif()

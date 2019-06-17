@@ -6,7 +6,8 @@ Permission is hereby granted, free of charge,
 to any person obtaining a copy of this software and associated documentation files( the "Software"),
 to deal in the Software without restriction, including without limitation the rights to use,
 copy, modify, merge, publish, distribute, sublicense, and / or sell copies of the Software,
-and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+and to permit persons to whom the Software is furnished to do so, subject to the following
+conditions:
 
 The above copyright notice and this permission notice shall be included in all copies or
 substantial portions of the Software.
@@ -22,6 +23,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SO
 #pragma once
 
 #include <array>
+#include <optional>
 
 namespace mpegts
 {
@@ -34,23 +36,37 @@ namespace detail
   struct ts_packet_t
   {
     uint32_t header;
+
     ts_packet_data_t data;
-    uint16_t pid;
+
+    uint16_t sync_byte;
+    bool transport_error;
+    int8_t continuity_cnt;
     bool pusi;
-    size_t pes_offset;
+    uint16_t pid;
+    uint8_t adaptation_field_ctl;
 
-    ts_packet_t()
-    {
-      reset();
-    }
-
-    void reset()
-    {
-      header = 0;
-      pid = 0;
-      pusi = false;
-      pes_offset = 0;
-    }
+    std::optional<uint8_t> pes_offset;
   };
+
+  using ts_packet_opt = std::optional<ts_packet_t>;
+
+  // https://ffmpeg.org/doxygen/3.2/mpegts_8c_source.html
+  const size_t MAX_PES_PAYLOAD_SIZE = 1024 * 200;
+
+  struct pes_packet_impl_t
+  {
+    uint32_t start_code;
+    uint16_t ts_packet_pid;
+    uint16_t stream_id;
+    size_t max_length;
+
+    std::array<uint8_t, MAX_PES_PAYLOAD_SIZE> data;
+    size_t cur_length;
+
+    uint16_t payload_offset;
+    uint16_t payload_length;
+  };
+
 } // namespace detail
 } // namespace mpegts
