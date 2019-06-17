@@ -31,6 +31,8 @@ namespace mpegts
 {
 namespace detail
 {
+  using pid_to_pes_packet_map_t = std::unordered_map<uint16_t, pes_packet_impl_t>;
+
   // pes packets builder
   class pes_parser
   {
@@ -41,12 +43,11 @@ namespace detail
     void flush();
 
   private:
-    using pid_to_pes_packet_map_t = std::unordered_map<uint16_t, pes_packet_impl_t>;
-
     packet_received_callback_t _callback;
     pid_to_pes_packet_map_t _pid_to_pes_packet;
     uint64_t _pes_packet_num = 0;
 
+    pid_to_pes_packet_map_t::iterator handle_pusi_packet(ts_packet_t &ts_packet);
     void handle_ready_pes_packet(pid_to_pes_packet_map_t::value_type &v);
   };
 } // namespace detail

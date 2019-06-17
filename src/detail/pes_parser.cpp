@@ -68,6 +68,50 @@ namespace detail
         std::bind(&pes_parser::handle_ready_pes_packet, this, std::placeholders::_1));
   }
 
+  pid_to_pes_packet_map_t::iterator pes_parser::handle_pusi_packet(ts_packet_t &ts_packet)
+  {
+    pid_to_pes_packet_map_t::iterator map_it;
+
+    if (!ts_packet.pusi)
+    {
+      BOOST_LOG_TRIVIAL(warning) << "Not PUSI packet, skipping";
+      return map_it;
+    }
+
+    pes_packet_impl_t pes_packet{};
+
+    pes_packet.ts_packet_pid = ts_packet.pid;
+    pes_packet.start_code = boost::endian::big_to_native(
+        *reinterpret_cast<const uint32_t *>(&ts_packet.data[*ts_packet.pes_offset]));
+    pes_packet.stream_id = (pes_packet.start_code & 0xff) | 0x100;
+
+    if (!do_checks(pes_packet))
+    {
+      log_utils::log_pes_packet(pes_packet, _pes_packet_num++);
+      return map_it;
+    }
+
+    *ts_packet.pes_offset += sizeof(uint32_t);
+
+    pes_packet.max_length = boost::endian::big_to_native(
+        *reinterpret_cast<const uint16_t *>(&ts_packet.data[*ts_packet.pes_offset]));
+    *ts_packet.pes_offset += sizeof(uint16_t);
+
+    map_it = _pid_to_pes_packet.find(ts_packet.pid);
+
+    if (map_it != _pid_to_pes_packet.end())
+    {
+      handle_ready_pes_packet(*map_it);
+      std::swap(map_it->second, pes_packet);
+    }
+    else
+    {
+      map_it = _pid_to_pes_packet.emplace(ts_packet.pid, std::move(pes_packet)).first;
+    }
+
+    return map_it;
+  }
+
   void pes_parser::feed_ts_packet(ts_packet_t ts_packet)
   {
     if (!ts_packet.pes_offset)
@@ -81,35 +125,10 @@ namespace detail
     // start of PES packet
     if (ts_packet.pusi)
     {
-      pes_packet_impl_t pes_packet{};
-
-      pes_packet.ts_packet_pid = ts_packet.pid;
-      pes_packet.start_code = boost::endian::big_to_native(
-          *reinterpret_cast<const uint32_t *>(&ts_packet.data[*ts_packet.pes_offset]));
-      pes_packet.stream_id = (pes_packet.start_code & 0xff) | 0x100;
-
-      if (!do_checks(pes_packet))
+      map_it = handle_pusi_packet(ts_packet);
+      if (map_it == _pid_to_pes_packet.end())
       {
-        log_utils::log_pes_packet(pes_packet, _pes_packet_num++);
         return;
-      }
-
-      *ts_packet.pes_offset += sizeof(uint32_t);
-
-      pes_packet.max_length = boost::endian::big_to_native(
-          *reinterpret_cast<const uint16_t *>(&ts_packet.data[*ts_packet.pes_offset]));
-      *ts_packet.pes_offset += sizeof(uint16_t);
-
-      map_it = _pid_to_pes_packet.find(ts_packet.pid);
-
-      if (map_it != _pid_to_pes_packet.end())
-      {
-        handle_ready_pes_packet(*map_it);
-        std::swap(map_it->second, pes_packet);
-      }
-      else
-      {
-        map_it = _pid_to_pes_packet.emplace(ts_packet.pid, std::move(pes_packet)).first;
       }
     }
     else
