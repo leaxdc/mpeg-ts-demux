@@ -25,4 +25,4 @@ Run *./build/mpeg-ts-demux --help* for options
 - https://en.wikipedia.org/wiki/MPEG_transport_stream
 
 ## License
-MIT
+https://opensource.org/licenses/MIT
