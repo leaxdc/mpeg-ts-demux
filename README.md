@@ -8,7 +8,7 @@ mpeg-ts-demux is a simple demultiplexer capable of extracting only media streams
 Unix only
 
 ### Prerequisites
-- C++14 enabled compiler
+- C++17 enabled compiler
 - *cmake 3.6+*
 - *boost 1.66.0+*
 
