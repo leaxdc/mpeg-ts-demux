@@ -64,7 +64,7 @@ namespace detail
 
   void pes_parser::flush()
   {
-    std::for_each(_pid_to_pes_packet.begin(), _pid_to_pes_packet.end(),
+    std::for_each(begin(_pid_to_pes_packet), end(_pid_to_pes_packet),
         std::bind(&pes_parser::handle_ready_pes_packet, this, std::placeholders::_1));
   }
 
@@ -83,6 +83,7 @@ namespace detail
     {
       pes_packet_impl_t pes_packet{};
 
+      pes_packet.ts_packet_pid = ts_packet.pid;
       pes_packet.start_code = boost::endian::big_to_native(
           *reinterpret_cast<const uint32_t *>(&ts_packet.data[*ts_packet.pes_offset]));
       pes_packet.stream_id = (pes_packet.start_code & 0xff) | 0x100;
@@ -122,11 +123,13 @@ namespace detail
       }
     }
 
-    auto ts_pes_length = ts_packet.data.size() - *ts_packet.pes_offset;
+    const auto ts_pes_length = ts_packet.data.size() - *ts_packet.pes_offset;
 
-    memcpy(&map_it->second.data[map_it->second.cur_length], &ts_packet.data[*ts_packet.pes_offset],
-        ts_pes_length);
+    const auto out_it = begin(map_it->second.data) + map_it->second.cur_length;
+    const auto in_it_start = cbegin(ts_packet.data) + *ts_packet.pes_offset;
+    const auto in_it_end = in_it_start + ts_pes_length;
 
+    std::copy(in_it_start, in_it_end, out_it);
     map_it->second.cur_length += ts_pes_length;
   }
 
@@ -134,7 +137,7 @@ namespace detail
   {
     auto &pes_packet = v.second;
 
-    uint32_t opt_pes_header =
+    const uint32_t opt_pes_header =
         boost::endian::big_to_native(*reinterpret_cast<const uint32_t *>(&pes_packet.data[0]));
 
     pes_packet.payload_offset = ((opt_pes_header & 0xff00) >> 8) + MIN_PES_OPT_HEADER_SIZE;
