@@ -65,6 +65,7 @@ public:
         detail::pes_parser pes_parser(_callback);
 
         // reusing ts_packet avoids reallocating of std::array member
+        // Minor: array allocates on stack, so it is always pre-allocated.
         detail::ts_packet_t ts_packet;
 
         while (!ifs.eof())
@@ -110,6 +111,7 @@ public:
 
   void join()
   {
+    // Medium: need to check if thread is joinable otherwise it throws
     if (_processing_thread)
     {
       BOOST_LOG_TRIVIAL(trace) << "Joining processing thread...";

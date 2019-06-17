@@ -33,6 +33,7 @@ namespace detail
 {
   namespace
   {
+    // Minor: constexpr
     const size_t MIN_PES_OPT_HEADER_SIZE = 3;
 
     bool do_checks(const pes_packet_impl_t &pes_packet)
